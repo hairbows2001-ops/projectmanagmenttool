@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Communications Workspace (prototype)</title>
+  <meta name="description" content="Local prototype for communications requests, workload and priorities. Fictional sample data. Simulated access.">
+  <!-- Optional heading font. If offline, the page falls back to Palatino/Georgia. -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23162939%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%277%27 fill=%27%2361B3B5%27/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main" onclick="var m=document.getElementById('main'); if(m){m.focus(); return false;}">Skip to main content</a>
+  <div id="app" aria-live="off">
+    <noscript><p style="padding:24px">This prototype needs JavaScript turned on.</p></noscript>
+  </div>
+  <div id="toasts" class="toast-region" role="status" aria-live="polite"></div>
+
+  <!-- Rules (no screen code) -->
+  <script src="js/core/util.js"></script>
+  <script src="js/core/dates.js"></script>
+  <script src="js/core/people.js"></script>
+  <script src="js/core/permissions.js"></script>
+  <script src="js/core/capacity.js"></script>
+  <script src="js/core/workflow.js"></script>
+  <script src="js/core/seed.js"></script>
+  <script src="js/store.js"></script>
+  <!-- Screens -->
+  <script src="js/ui/components.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ui/welcome.js"></script>
+  <script src="js/ui/dashboards.js"></script>
+  <script src="js/ui/workload.js"></script>
+  <script src="js/ui/calendar.js"></script>
+  <script src="js/ui/forms.js"></script>
+  <script src="js/ui/task.js"></script>
+  <script src="js/ui/capacity-view.js"></script>
+  <script src="js/ui/decisions.js"></script>
+  <script src="js/ui/meetings.js"></script>
+  <script src="js/ui/about.js"></script>
+  <script>WH.start();</script>
+</body>
+</html>

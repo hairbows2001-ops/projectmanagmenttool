@@ -1,0 +1,13 @@
+{
+  "name": "wh-communications-workspace-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local prototype: communications request and workload app for Women's Habitat of Etobicoke. Fictional sample data.",
+  "scripts": {
+    "start": "node serve.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

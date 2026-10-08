@@ -154,7 +154,7 @@
     const pendingMeetings = app.state.meetings.filter((m) => m.status === 'pending' || m.status === 'counter').length;
     const t = (key, href, label, count) => '<a href="' + href + '"' + (tab === key ? ' aria-current="page"' : '') + '>' + label +
       (count ? ' <span class="tab-count">' + count + '<span class="visually-hidden"> waiting</span></span>' : '') + '</a>';
-    const primary = app.user === 'maha'
+    const primary = WH.permissions.isOwner(app.user)
       ? (tab === 'leave' ? '' : '<a class="btn primary" href="#/calendar/leave">' + ui.icon('plus') + 'Add event or leave</a>')
       : '<a class="btn primary" href="#/calendar/meetings/new">' + ui.icon('users') + 'Request a meeting</a>';
     const body = tab === 'meetings' ? WH.calendarTabs.meetings(app) : tab === 'leave' ? WH.calendarTabs.leave(app) : calendarBody(app);

@@ -1,0 +1,38 @@
+# Fly.io settings for the team workspace (see docs/hosting.md). Nothing is deployed until someone
+# with a Fly.io account runs `fly deploy`.
+# Before the first deploy, replace wh-comms-workspace (twice) with the app name you choose.
+
+app = "wh-comms-workspace"
+primary_region = "yyz"            # Toronto, so data stays in Canada
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PUBLIC_URL = "https://wh-comms-workspace.fly.dev"
+  TRUST_PROXY = "1"
+  DATA_DIR = "/data"
+
+# The database, documents and daily backups live on this private disk (volume).
+[mounts]
+  source = "wh_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Stops when nobody is using it and starts again on the next visit (a few seconds), to keep costs low.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

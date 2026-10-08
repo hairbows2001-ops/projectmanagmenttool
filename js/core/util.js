@@ -13,11 +13,20 @@
   }
 
   let counter = 0;
-  function uid(prefix) {
+  let uidHook = null;
+  function generateUid(prefix) {
     counter += 1;
     return (prefix || 'id') + '-' + Date.now().toString(36) + '-' + counter.toString(36) +
       Math.floor(Math.random() * 1e6).toString(36);
   }
+  /**
+   * New ids. The team workspace sets a hook so the browser and the server create the same ids
+   * for the same change (the browser records them, the server reuses them after checking).
+   */
+  function uid(prefix) {
+    return uidHook ? uidHook(prefix || 'id', () => generateUid(prefix)) : generateUid(prefix);
+  }
+  function setUidHook(fn) { uidHook = fn || null; }
 
   // One decimal place, avoiding floating point noise such as 31.700000000000003.
   function round1(n) {
@@ -51,5 +60,5 @@
     }
   }
 
-  WH.util = { esc, uid, round1, fmtHours, clone, PermissionError, ValidationError };
+  WH.util = { esc, uid, setUidHook, round1, fmtHours, clone, PermissionError, ValidationError };
 })(globalThis.WH = globalThis.WH || {});

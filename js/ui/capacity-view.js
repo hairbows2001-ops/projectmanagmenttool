@@ -83,7 +83,7 @@
     const selected = app.ui.capWeek || cw;
     const s = C.weekSummary(app.state, selected, cw);
     const undated = C.pendingImpact(app.state, cw).undated;
-    const isMaha = app.user === 'maha';
+    const isMaha = WH.permissions.isOwner(app.user);
     return '<p class="small muted">Maha works 37.7 h a week, Monday to Friday, 9 a.m. to 5 p.m. (Toronto). 6 h is reserved for social media.</p>' +
       '<div class="grid grid-main"><div>' +
       (isMaha ? mahaTools(app, s) : '') + eventsList(app) +

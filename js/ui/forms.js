@@ -18,7 +18,7 @@
 
   WH.panels.requestForm = function (app, params) {
     const editing = params && params[0];
-    const isMaha = app.user === 'maha';
+    const isMaha = WH.permissions.isOwner(app.user);
     let t = {};
     if (editing) {
       t = app.state.tasks.find((x) => x.id === editing);
@@ -64,7 +64,7 @@
       ui.field({ name: 'missingInfo', label: 'Information still missing', type: 'textarea', rows: 2, value: t.missingInfo }) +
       ui.field({ name: 'notes', label: 'Notes', type: 'textarea', rows: 2, value: t.notes }) +
       links + '</div></details>' +
-      (editing ? '' : '<fieldset><legend>Attachments</legend><div class="field" data-field="files"><label for="f-files">Documents <span class="hint">Optional. Up to 10 MB each. Saved in this browser only.</span></label>' +
+      (editing ? '' : '<fieldset><legend>Attachments</legend><div class="field" data-field="files"><label for="f-files">Documents <span class="hint">Optional. Up to 10 MB each. ' + (WH.remote.isTeam() ? 'Only you, Maha and Carla can open them.' : 'Saved in this browser only.') + '</span></label>' +
         '<input id="f-files" name="files" type="file" multiple></div></fieldset>') +
       '<div class="btn-row form-actions"><button type="submit" class="btn primary">' + (editing ? 'Save changes' : isMaha ? 'Create task' : 'Send request') + '</button>' +
       '<button type="button" class="btn" data-action="close-panel">Cancel</button></div></form>';
@@ -73,6 +73,7 @@
 
   /** Saves files one by one. Only files that are confirmed stored get recorded as documents. */
   function uploadFiles(app, taskId, files) {
+    if (WH.remote.isTeam()) return WH.remote.uploadFiles(app, taskId, files);
     let chain = Promise.resolve({ saved: 0, failed: 0 });
     files.forEach((file) => {
       chain = chain.then((acc) => WH.store.saveFile(file)
@@ -94,20 +95,18 @@
 
   WH.forms['request-create'] = (app, form, data) => {
     const links = [1, 2].map((i) => ({ url: data['link' + i + 'url'], label: data['link' + i + 'label'] }));
-    let task;
-    try {
-      task = W.createTask(app.state, app.user, Object.assign({}, data, { links }));
-    } catch (e) {
-      app.handleError(e, form);
-      return;
-    }
-    WH.store.save(app.state);
     const files = Array.from(data.files || []);
     const button = form.querySelector('button[type="submit"]');
-    if (files.length) { button.disabled = true; button.textContent = 'Saving files…'; }
-    uploadFiles(app, task.id, files).then((r) => {
-      app.go('#/tasks/' + encodeURIComponent(task.id));
-      app.toast((app.user === 'maha' ? 'Task created.' : 'Request sent to Maha.') + (r.saved ? ' ' + r.saved + ' document' + (r.saved > 1 ? 's' : '') + ' saved in this browser.' : ''));
+    button.disabled = true;
+    app.apply(() => W.createTask(app.state, app.user, Object.assign({}, data, { links })), { base: form.baseRev }).then((task) => {
+      if (files.length) button.textContent = 'Saving files…';
+      return uploadFiles(app, task.id, files).then((r) => {
+        app.go('#/tasks/' + encodeURIComponent(task.id));
+        app.toast((WH.permissions.isOwner(app.user) ? 'Task created.' : 'Request sent to Maha.') + (r.saved ? ' ' + r.saved + ' document' + (r.saved > 1 ? 's' : '') + (WH.remote.isTeam() ? ' uploaded.' : ' saved in this browser.') : ''));
+      });
+    }).catch((e) => {
+      button.disabled = false;
+      app.handleError(e, form);
     });
   };
 

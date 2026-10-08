@@ -74,7 +74,7 @@
     if (over.length) parts.push(over.length === 1 ? 'Week of ' + D.fmtWeek(over[0].summary.weekStart) + ' is ' + fmtHours(over[0].summary.over) + ' over capacity' : over.length + ' weeks are over capacity');
     if (pending) parts.push(pending + ' change' + (pending > 1 ? 's' : '') + ' waiting for Maha to confirm');
     if (!parts.length) return '<p class="prio-line ok"><span>No priority conflicts.</span><a href="#/tasks/priorities">Priorities</a></p>';
-    const label = app.user === 'carla' ? 'Review priorities' : app.user === 'maha' ? 'Review and confirm' : 'View priorities';
+    const label = WH.permissions.isExec(app.user) ? 'Review priorities' : WH.permissions.isOwner(app.user) ? 'Review and confirm' : 'View priorities';
     return '<p class="prio-line">' + ui.icon('alert') + '<span>' + esc(parts.join(' · ')) + '</span><a class="btn small" href="#/tasks/priorities">' + label + '</a></p>';
   }
 
@@ -89,7 +89,7 @@
     const week = app.ui.weekCursor && app.ui.weekCursor >= cw ? app.ui.weekCursor : cw;
     const sum = C.weekSummary(s, week, cw);
     const today = W.today();
-    const isMaha = app.user === 'maha';
+    const isMaha = WH.permissions.isOwner(app.user);
     const items = sum.tasks.concat(sum.socialTasks).sort((a, b) => {
       const pa = a.task.priority ? PRIO[a.task.priority] : 9;
       const pb = b.task.priority ? PRIO[b.task.priority] : 9;
@@ -131,7 +131,7 @@
     const view = route.view || 'list';
     app.ui.tasksView = view;
     const f = app.ui.filters;
-    const primary = '<a class="btn primary" href="#/tasks/new">' + ui.icon('plus') + (app.user === 'maha' ? 'Create task' : 'Request a task') + '</a>';
+    const primary = '<a class="btn primary" href="#/tasks/new">' + ui.icon('plus') + (WH.permissions.isOwner(app.user) ? 'Create task' : 'Request a task') + '</a>';
     let body;
     if (view === 'week') {
       body = weekView(app);

@@ -1,12 +1,31 @@
-# Communications Workspace (prototype)
+# Communications Workspace
 
-**Women's Habitat of Etobicoke**: a local prototype to help managers request communications work, see Maha's workload, and help Carla decide what comes first.
+**Women's Habitat of Etobicoke**: helps managers request communications work, see Maha's workload, and helps Carla decide what comes first.
 
-> **This is a prototype.** Sign-in is simulated (anyone can choose any name), all content is fictional sample data, and changes are saved only in the browser you use. Do not enter real client, resident, donor or staff information. See [docs/before-real-use.md](docs/before-real-use.md).
+This project contains two separate versions of the same app:
+
+| | **Demo** | **Team workspace** (private pilot) |
+| --- | --- | --- |
+| Purpose | Try the workflow with fictional sample data | Real use by a small pilot group |
+| Sign-in | Pick any profile (simulated, not secure) | Personal accounts from single-use, expiring invitations |
+| Permissions | Checked in the browser | Enforced by the server |
+| Data | Saved in your browser only | Shared database and private document storage on the server |
+| Start | Double-click `index.html` (or `npm run demo`) | `npm start` (or hosted: see [docs/hosting.md](docs/hosting.md)) |
+
+They never share data. To keep tasks you made in the demo, export them from the demo and import them in the team workspace (Maha, under *Workspace settings*).
+
+- **Setting up the pilot:** [docs/pilot-setup.md](docs/pilot-setup.md) (hosting choice, first accounts, checklist before inviting anyone)
+- **Hosting options, accounts and costs:** [docs/hosting.md](docs/hosting.md)
+- **Backups and recovery:** [docs/backup-and-recovery.md](docs/backup-and-recovery.md)
+- **Before wider use:** [docs/before-real-use.md](docs/before-real-use.md)
+
+Email, notifications and Outlook are **not** connected in either version.
 
 ---
 
-## 1. How to open it
+## 1. How to open the demo
+
+> The demo uses simulated sign-in and fictional sample data, saved only in your browser. Do not enter real information in it.
 
 You don't need to install anything to look at it.
 
@@ -15,21 +34,21 @@ You don't need to install anything to look at it.
 1. Download or copy this folder to your computer.
 2. Double-click `index.html`. It opens in your web browser (Chrome or Edge recommended).
 
-**Option B: run a small local server (recommended if Option A has problems)**
+**Option B: run the small demo server (recommended if Option A has problems)**
 
 Some browsers restrict saving files when a page is opened by double-clicking. If uploads don't work, use this:
 
 1. Install [Node.js](https://nodejs.org) (the "LTS" version) if it isn't installed.
 2. Open a terminal in this folder and run:
    ```
-   npm start
+   npm run demo
    ```
 3. Open <http://localhost:8080> in your browser.
 4. Press `Ctrl+C` in the terminal to stop.
 
 The server only accepts connections from your own computer, so nobody else on the network can open it.
 
-**Running the automated checks** (optional): `npm test` runs the rule tests (capacity math, workflow and permissions) with no extra packages.
+**Running the automated checks** (optional): `npm test` runs the rule tests (capacity math, workflow and permissions) and the team server tests (accounts, server-enforced permissions, private files, conflict protection, import, backup and restore). It needs Node.js 22.13 or newer and no extra packages.
 
 **Starting over:** use "Reset sample data" at the bottom of any page.
 
@@ -46,6 +65,8 @@ The app has three sections: **Home**, **Tasks** and **Calendar**. Your name at t
 7. **Lina** or **Christine**: **Request a task**. Only a title is needed; add a brief, optional details and attachments now or later.
 8. **Maha**: open the request. The panel's top section shows the next step: estimate, then schedule, then **Start work**, then **Mark complete**, then **Request approval** (managers' requests only).
 9. **Calendar**: month and week views, *Meetings* (answer or propose another time) and *Events & leave* (add events, reduce a week's capacity for leave).
+
+**Keeping tasks you made in the demo:** profile menu → **Export tasks to keep** downloads your own tasks (never the sample ones) with their documents, for Maha to import into the team workspace.
 
 ## 3. What works
 
@@ -72,42 +93,62 @@ The app has three sections: **Home**, **Tasks** and **Calendar**. Your name at t
 - Requests not yet scheduled appear as **"Requested, not yet scheduled"** (potential impact), never mixed into committed hours.
 - A request without an estimate shows **"Estimate needed"**. It is never counted as zero.
 
+### Team workspace (private pilot)
+
+| Area | What it does |
+| --- | --- |
+| Accounts | Maha invites managers from *Workspace settings*. Each link works once and expires after 72 hours, and it is shown to copy, never emailed. Maha's and Carla's accounts are created from the server command line (`npm run admin`). Password reset links, and turning accounts off. |
+| Permissions | The server runs the same rules as the screens for every change, as the signed-in person. A manager cannot approve, set priorities or schedule, even by tampering with the page. |
+| Privacy | Everyone sees what Maha is working on (title, requester, status, dates, effort). The brief, comments, documents and history of a request are visible only to the requester, Maha and Carla. Documents are stored privately on the server and checked on every download. |
+| Changes by two people | If someone else changed the same thing after you opened it, your change is refused, you see who changed what and when, and your typing is kept. Comments and other additions are merged. Open pages refresh every 15 seconds. |
+| Data | One SQLite database file plus a documents folder (`DATA_DIR`, default `./data`). It starts empty: no sample data. |
+| Import and export | Maha imports an export file (from the demo, or from another team workspace) after checking the list. Sample tasks are always skipped, and nothing is duplicated. |
+| Backups | Daily automatic backups (14 kept), a one-click download for Maha, and restore by command or by placing `restore-this.tar` in the data folder. |
+
 ### If you used an earlier version
 
 The first time you open this version, data saved in your browser is updated automatically and a message says so. Nothing is deleted. Requests that were waiting for (or declined) request approval get a note and can be scheduled normally. Finished work that an earlier update moved back to *In progress* returns to *Awaiting approval*, keeping its original "sent to Carla" time, with a history note.
 
-## 4. What is simulated or incomplete
+## 4. What is simulated or not built yet
+
+In the **demo**:
 
 - **Sign-in is simulated.** Choosing a name is not authentication. Anyone can choose Carla. Permission rules are checked in the browser: they stop mistakes, not someone determined to bypass them.
 - **Data is local to one browser on one computer.** It is not shared with anyone. Clearing browser data erases it.
 - **Documents are stored in the browser only** (up to 10 MB each). They can be reopened on the same computer and browser, but nobody else can open them. Sample documents are names only, with no file.
+
+In **both** versions:
+
 - **No Outlook connection.** The calendar is internal. Nothing is sent to or read from the Women's Habitat mail server.
 - **No email.** The app does not send or receive email. Carla approves completed work inside the app. An earlier version simulated approval emails to Carla; that page was removed (the code is kept in the project's history).
-- **No notifications** (new request, clarification, meetings) are sent; people see updates when they open the app.
+- **No notifications** (new request, clarification, meetings) are sent; people see updates when they open the app (the team workspace refreshes open pages every 15 seconds).
 - **Time of day for tasks** isn't scheduled; effort is planned by week. Meetings and events have times.
 - The heading font (Cormorant Garamond) loads from Google Fonts when online; offline it falls back to Palatino/Georgia. This is the only outside request the page makes.
 
-## 5. Before real team use
+## 5. Before wider use
 
-See **[docs/before-real-use.md](docs/before-real-use.md)** for what's required for:
-
-- secure individual accounts (one-time invitation codes, then personal sign-in, with Carla's permissions enforced on a server),
-- shared, persistent document storage,
-- a later Outlook integration, and the questions to confirm with IT.
+The team workspace is ready for a private pilot. **[docs/before-real-use.md](docs/before-real-use.md)** lists what is in place and what is still needed before wider use: privacy review, stronger sign-in (second factor or Microsoft single sign-on), notifications, and the questions for IT about Outlook.
 
 ## Project layout
 
 ```
-index.html            The page that loads everything
+index.html            The page that loads everything (both versions)
 css/styles.css        Visual design
 js/core/              The rules: dates, people, permissions, capacity, workflow, sample data,
                       and migrate.js (updates data saved by earlier versions)
-js/store.js           Saving in this browser (localStorage + IndexedDB for files)
+js/config.js          Says "demo"; the team server replaces it with "team"
+js/store.js           Demo: saving in this browser (localStorage + IndexedDB for files)
+js/remote.js          Team workspace: sends changes to the server, refreshes, uploads and downloads
 js/app.js             Navigation, saving after each change, error messages
 js/ui/                Screens: home.js, tasks.js, task.js (detail panel), forms.js, decisions.js
-                      (priorities panel), calendar.js, meetings.js and capacity-view.js (Calendar tabs)
-tests/                Automated rule tests (npm test)
-serve.js              Optional local server (npm start)
+                      (priorities panel), calendar.js, meetings.js and capacity-view.js (Calendar tabs),
+                      account.js (sign-in, invitation, reset), settings.js (Maha's workspace settings)
+server/               Team workspace server: index.js (web and API), auth.js (accounts, invitations,
+                      sessions), workspace.js (runs the rules, saves, conflict checks, privacy, import),
+                      db.js (SQLite database), backup.js, admin.js (command line), config.js (settings)
+tests/                Automated tests (npm test)
+serve.js              Demo server (npm run demo)
+Dockerfile, fly.toml  Hosting settings (not deployed)
 PLAN.md               The implementation plan
-docs/before-real-use.md
+docs/                 hosting.md, pilot-setup.md, backup-and-recovery.md, before-real-use.md
 ```

@@ -154,10 +154,10 @@
   function nextStep(app, task) {
     const u = app.user;
     const can = (a) => P.can(u, a, task);
-    if (can('task.provideInfo') && u !== 'maha') {
+    if (can('task.provideInfo') && !WH.permissions.isOwner(u)) {
       return inlineForm('provide-info', task, ui.field({ name: 'note', label: 'Maha asked for more information', type: 'textarea', rows: 3, id: 'info-note' }), 'Send to Maha');
     }
-    if (u === 'maha') {
+    if (WH.permissions.isOwner(u)) {
       if (OPEN.includes(task.status) && task.status !== 'in_progress' && !(task.estimateHours > 0)) {
         return inlineForm('estimate', task, ui.field({ name: 'estimate', label: 'Estimate effort (hours)', type: 'number', min: 0.5, step: 0.5, id: 'est-hours' }), 'Save estimate');
       }
@@ -212,7 +212,7 @@
     const can = (a) => P.can(u, a, task);
     const parts = [];
     if (can('task.editBrief') && !(nextStep(app, task) || '').includes('/edit"')) parts.push('<p><a class="btn small" href="#/tasks/' + encodeURIComponent(task.id) + '/edit">Edit brief</a></p>');
-    if (u === 'maha') {
+    if (WH.permissions.isOwner(u)) {
       if (can('task.provideInfo')) parts.push(detailsForm('Mark information as received', 'provide-info', task, ui.field({ name: 'note', label: 'Information or answer', type: 'textarea', rows: 3, id: 'info-note-m' }), 'Save'));
       if (task.status === 'submitted') parts.push(detailsForm('Ask for clarification', 'clarify', task, ui.field({ name: 'question', label: 'What do you need to know?', type: 'textarea', rows: 3, id: 'clarify-q' }), 'Send question'));
       if (OPEN.includes(task.status) && (task.estimateHours > 0 || task.status === 'in_progress')) {
@@ -253,21 +253,29 @@
     const step = nextStep(app, task);
     const more = moreActions(app, task);
     const done = completion(task);
-    const viewOnly = !step && !more && P.can(app.user, 'view')
+    const viewOnly = !task.restricted && !step && !more && P.can(app.user, 'view')
       ? '<p class="small muted">' + ui.icon('lock').replace('<svg', '<svg width="14" height="14"') + ' View only. Only ' + esc(people.name(task.requesterId)) + ', Maha and Carla can change this request.</p>' : '';
     const html =
       '<div class="panel-summary"><span class="chips">' + ui.statusLabel(task) + ui.usefulPriority(task) + ui.urgencyChip(task) + '</span>' +
       '<p class="trow-meta">' + esc(people.name(task.requesterId)) + ' · ' + esc(ui.dueText(task)) + (task.estimateHours > 0 ? ' · ' + fmtHours(task.estimateHours) + ' estimated' : ' · Estimate needed') + '</p></div>' +
       callouts + (step ? '<div class="next-step">' + step + '</div>' : '') + viewOnly +
-      section('brief', 'Brief', brief(task), { open: true }) +
+      (task.restricted
+        ? '<div class="callout small" role="note"><p>' + ui.icon('lock').replace('<svg', '<svg width="14" height="14"') + ' The brief, comments, documents and history of this request are private to ' +
+          esc(people.name(task.requesterId)) + ', Maha and Carla. You can see its status, dates and effort.</p></div>' +
+          section('schedule', 'Schedule and effort', scheduleInfo(app, task), { open: true })
+        : restOfPanel(app, task, done, more));
+    return { title: task.title, eyebrow: task.project || 'Task', html };
+  };
+
+  function restOfPanel(app, task, done, more) {
+    return section('brief', 'Brief', brief(task), { open: true }) +
       (done ? section('done', 'Completion and approval', done, { open: ['complete', 'awaiting_approval'].includes(task.status) }) : '') +
       section('schedule', 'Schedule and effort', scheduleInfo(app, task)) +
       section('docs', 'Documents and links', docs(app, task), { count: task.documents.length + task.links.length }) +
       section('comments', 'Comments', comments(app, task), { count: task.comments.length, open: task.status === 'clarification' }) +
       (more ? section('more', 'More actions', more) : '') +
       section('history', 'Activity history', ui.historyList(task.history), { count: task.history.length });
-    return { title: task.title, eyebrow: task.project || 'Task', html };
-  };
+  }
 
   // ---------- forms & actions ----------
 
@@ -282,7 +290,7 @@
     btn.disabled = true; btn.textContent = 'Saving…';
     WH.uploadFiles(app, id(form), files).then((r) => {
       app.render();
-      if (r.saved) app.toast(r.saved + ' document' + (r.saved > 1 ? 's' : '') + ' saved in this browser.');
+      if (r.saved) app.toast(r.saved + ' document' + (r.saved > 1 ? 's' : '') + (WH.remote.isTeam() ? ' uploaded.' : ' saved in this browser.'));
     });
   };
   WH.forms['provide-info'] = (app, form, d) => app.mutate(() => W.provideInfo(app.state, app.user, id(form), d.note), 'Sent. The request is back with Maha for review.', { form });
@@ -332,6 +340,7 @@
   };
 
   WH.actions['download-doc'] = (app, el) => {
+    if (WH.remote.isTeam()) { WH.remote.download(app, el.getAttribute('data-id'), el.getAttribute('data-name')); return; }
     WH.store.getFile(el.getAttribute('data-id')).then((rec) => {
       if (!rec) { app.toast('This file is not stored in this browser.', 'error'); return; }
       const url = URL.createObjectURL(rec.blob);

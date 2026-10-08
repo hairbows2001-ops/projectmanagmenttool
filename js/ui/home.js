@@ -69,7 +69,7 @@
   function decisionsSection(app) {
     const s = app.state;
     const cw = W.currentWeek();
-    const isMaha = app.user === 'maha';
+    const isMaha = WH.permissions.isOwner(app.user);
     const rows = [];
     const pending = s.proposals.filter((p) => p.status === 'pending');
     C.conflicts(s, cw, 8).filter((c) => c.kind === 'committed').forEach((c) => {
@@ -115,7 +115,7 @@
   function approvalSection(app) {
     const s = app.state;
     const today = W.today();
-    const isCarla = app.user === 'carla';
+    const isCarla = WH.permissions.isExec(app.user);
     const waiting = s.tasks.filter((t) => t.status === 'awaiting_approval' && (!isCarla || (t.approval && t.approval.requestedAt)))
       .sort((a, b) => ((a.completedAt || '') < (b.completedAt || '') ? -1 : 1));
     const approvedToday = s.tasks.filter((t) => t.status === 'complete' && t.approval && t.approval.decision === 'approved' && t.approval.decidedAt && D.todayISO(new Date(t.approval.decidedAt)) === today);
@@ -129,7 +129,7 @@
       } else if (!a.requestedAt) {
         when = 'Completed ' + esc(D.fmtStamp(a.completedAt || t.completedAt));
         side = '<span class="chip s-awaiting_approval">Awaiting approval</span>' +
-          (app.user === 'maha' ? '<button type="button" class="btn small" data-action="request-approval" data-id="' + esc(t.id) + '">Request approval</button>' : '');
+          (WH.permissions.isOwner(app.user) ? '<button type="button" class="btn small" data-action="request-approval" data-id="' + esc(t.id) + '">Request approval</button>' : '');
       } else {
         when = 'Sent to Carla ' + esc(D.fmtStamp(a.requestedAt));
         side = '<span class="chip s-awaiting_approval">Awaiting approval</span>' +
@@ -250,7 +250,7 @@
   function managerHome(app) {
     const s = app.state;
     const me = app.user;
-    const isCarla = me === 'carla';
+    const isCarla = WH.permissions.isExec(me);
     const cw = W.currentWeek();
 
     const mine = s.tasks.filter((t) => t.requesterId === me);
@@ -295,7 +295,7 @@
   }
 
   WH.views.home = function (app) {
-    return app.user === 'maha' ? mahaHome(app) : managerHome(app);
+    return WH.permissions.isOwner(app.user) ? mahaHome(app) : managerHome(app);
   };
 
   // ---------- actions ----------

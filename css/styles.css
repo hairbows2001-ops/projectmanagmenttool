@@ -214,7 +214,7 @@ label, .label { font-weight: 600; font-size: 0.88rem; }
 label { display: block; margin-bottom: 5px; }
 .hint { display: block; font-weight: 400; color: var(--ink-2); font-size: 0.82rem; margin-top: 2px; }
 .req { color: var(--danger-ink); font-weight: 600; }
-input[type="text"], input[type="url"], input[type="date"], input[type="time"], input[type="number"], input[type="search"], select, textarea {
+input[type="text"], input[type="email"], input[type="password"], input[type="url"], input[type="date"], input[type="time"], input[type="number"], input[type="search"], select, textarea {
   width: 100%; font: inherit; color: var(--ink); padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: var(--radius-sm); background: #fffdf9;
 }
 textarea { min-height: 70px; resize: vertical; }
@@ -430,6 +430,17 @@ a.ev:hover { text-decoration: underline; }
 .group-label { margin: 22px 0 6px; }
 .disclaimer { font-size: 0.85rem; color: var(--ink-2); text-align: center; margin-top: 20px; }
 
+/* Team workspace: sign-in pages and workspace settings */
+.pilot-label { color: var(--teal-ink); background: var(--teal-soft); }
+.account-card { max-width: 520px; border-radius: 180px 180px var(--radius) var(--radius); padding: 64px 40px 28px; }
+.account-card h2 { text-align: center; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.settings-grid .card { border: 1px solid var(--rule); }
+.row-actions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 4px; font-size: 0.85rem; }
+.row-actions .linklike { font-size: inherit; }
+.link-box { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.link-box input { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, monospace; font-size: 0.8rem; }
+
 /* ---------- responsive ---------- */
 
 @media (max-width: 960px) {
@@ -449,6 +460,8 @@ a.ev:hover { text-decoration: underline; }
 }
 
 @media (max-width: 720px) {
+  .settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .arch.account-card { border-radius: 110px 110px var(--radius) var(--radius); padding: 52px 18px 22px; }
   h1 { font-size: 1.6rem; }
   .welcome-head h1 { font-size: 2.1rem; }
   .topbar { padding: 6px 12px; gap: 8px; }

@@ -35,6 +35,19 @@ Code layout:
 5. **Checks**: automated tests for rules; browser walk-through of the main flows, keyboard navigation, contrast and mobile layout.
 6. **Documentation**: launch instructions, what works, what is simulated, and what's needed for secure team use, document storage and Outlook (`README.md`, `docs/before-real-use.md`).
 
+## Team workspace (private pilot)
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Server | One small Node.js program (`server/`), no packages | Nothing to install or keep updated besides Node.js |
+| Rules | The server runs the same `js/core` rules as the screens, as the signed-in account | One set of rules; permissions can't be bypassed from the browser |
+| Database | SQLite (built into Node.js): one file | Simple to host, back up and move |
+| Documents | Private folder on the server, permission checked on each download | Not in the web folder; only requester, Maha and Carla |
+| Accounts | Single-use invitation links (72 h), email + password (scrypt), HttpOnly session cookies | No shared codes; nothing secret stored in plain text |
+| Overwrite protection | Each field remembers the revision, person and time of its last change; a change based on an older revision of the same field is refused | Nobody's work is silently replaced; additions (comments, history) merge |
+| Hosting | Proposed: Fly.io, Toronto (see `docs/hosting.md`); not deployed | Canadian data location, low cost, HTTPS included |
+| Backups | Daily automatic `.tar` (14 kept) plus Maha's weekly download; restore by command or `restore-this.tar` | Recoverable even if the host is lost |
+
 ## Key rules encoded
 
 - Statuses: Submitted → Needs clarification → Scheduled → In progress → Awaiting approval → Complete, plus Blocked (a flag with a reason), Cancelled and Archived (history kept).

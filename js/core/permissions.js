@@ -1,9 +1,10 @@
 /*
  * Permission rules: who may do what.
  *
- * IMPORTANT: in this prototype these checks run in the browser, so they protect against
- * mistakes, not against someone determined to bypass them. In a real team version the
- * same rules must run on a server that knows who is signed in (see docs/before-real-use.md).
+ * Demo: these checks run in the browser, so they protect against mistakes, not against
+ * someone determined to bypass them.
+ * Team workspace: the server runs these same rules for the signed-in account before any change
+ * is saved (server/workspace.js), so changing the page in a browser cannot get around them.
  */
 (function (WH) {
   'use strict';
@@ -29,6 +30,11 @@
       // Everyone can view all task summaries, priorities, deadlines, effort and status.
       case 'view':
         return true;
+
+      // The brief, comments, documents, links and history of a request: only the person who asked,
+      // Maha and Carla. Other managers see the summary (title, requester, status, dates, effort).
+      case 'task.viewDetails':
+        return isRequester(userId, item) || isOwner(userId) || isExec(userId);
 
       case 'task.create':
         return true;

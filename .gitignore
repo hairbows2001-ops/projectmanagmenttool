@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 *.log
+# Team workspace data (database, documents, backups): never commit
+data/
+*.sqlite
+*.tar

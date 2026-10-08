@@ -16,9 +16,12 @@
   WH.actions = WH.actions || {};
   WH.forms = WH.forms || {};
 
+  const team = () => WH.remote.isTeam();
+
   const app = {
     state: null,
     user: null,
+    rev: 0,
     route: { name: 'welcome', params: [] },
     ui: {
       tasksView: 'list',
@@ -53,8 +56,14 @@
     [/^\/calendar\/meetings$/, 'calendar', { tab: 'meetings' }],
     [/^\/calendar\/leave$/, 'calendar', { tab: 'leave' }],
     [/^\/calendar\/meetings\/new$/, 'panel', { panel: 'meetingForm' }],
-    [/^\/about$/, 'about']
+    [/^\/about$/, 'about'],
+    [/^\/settings$/, 'settings'],
+    [/^\/signin$/, 'signin'],
+    [/^\/join\/([^/]+)$/, 'join'],
+    [/^\/reset\/([^/]+)$/, 'reset']
   ];
+  // Full-page screens without the navigation (demo profile picker; team sign-in and invitation pages).
+  const SOLO = ['welcome', 'signin', 'join', 'reset'];
 
   // Older addresses keep working.
   const REDIRECTS = {
@@ -91,15 +100,21 @@
   }
 
   function profileMenu(p) {
+    const items = team()
+      ? '<p class="menu-note" role="presentation">Private pilot workspace. Signed in as ' + esc(app.me ? app.me.email : p.name) + '.</p>' +
+        (WH.permissions.isOwner(app.user) ? '<a role="menuitem" href="#/settings">Workspace settings</a>' : '') +
+        '<a role="menuitem" href="#/about">About this workspace</a>' +
+        '<button type="button" role="menuitem" data-action="sign-out">Sign out</button>'
+      : '<p class="menu-note" role="presentation">Demo workspace: simulated sign-in. Changes are saved in this browser only.</p>' +
+        '<button type="button" role="menuitem" data-action="switch-profile">Switch profile</button>' +
+        '<a role="menuitem" href="#/about">About this prototype</a>' +
+        '<button type="button" role="menuitem" data-action="export-demo-tasks">Export tasks to keep</button>' +
+        '<button type="button" role="menuitem" data-action="reset-data">Reset sample data</button>';
     return '<div class="menu profile-menu">' +
       '<button type="button" class="profile-btn-top" data-action="menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="profile-menu">' +
       '<span class="avatar" aria-hidden="true">' + esc(p.first.charAt(0)) + '</span><span class="who"><strong>' + esc(p.name) + '</strong><small>' + esc(p.title) + '</small></span>' +
       '<span class="caret" aria-hidden="true">▾</span><span class="visually-hidden">Profile menu</span></button>' +
-      '<div class="menu-list" id="profile-menu" role="menu" hidden>' +
-      '<p class="menu-note" role="presentation">Demo workspace: simulated sign-in. Changes are saved in this browser only.</p>' +
-      '<button type="button" role="menuitem" data-action="switch-profile">Switch profile</button>' +
-      '<a role="menuitem" href="#/about">About this prototype</a>' +
-      '<button type="button" role="menuitem" data-action="reset-data">Reset sample data</button></div></div>';
+      '<div class="menu-list" id="profile-menu" role="menu" hidden>' + items + '</div></div>';
   }
 
   function shell(content, panelHtml) {
@@ -111,7 +126,9 @@
     return '<div class="app-frame"' + (panelHtml ? ' inert' : '') + '>' +
       '<header class="topbar"><a class="brand" href="#/home"><span class="brand-name">Communications Workspace</span>' +
       '<span class="brand-org">Women’s Habitat of Etobicoke</span></a>' +
-      '<span class="demo-label" title="Simulated sign-in. All tasks, meetings and dates are fictional sample data, saved in this browser only.">Demo workspace<span class="demo-extra"> · fictional data</span></span>' +
+      (team()
+        ? '<span class="demo-label pilot-label" title="Shared team workspace, private pilot. Do not enter client or resident information.">Private pilot</span>'
+        : '<span class="demo-label" title="Simulated sign-in. All tasks, meetings and dates are fictional sample data, saved in this browser only.">Demo workspace<span class="demo-extra"> · fictional data</span></span>') +
       profileMenu(p) + '</header>' +
       '<div class="shell"><nav class="sidenav" aria-label="Main"><ul>' + nav + '</ul></nav>' +
       '<main id="main" tabindex="-1">' + content + '</main></div></div>' + (panelHtml || '');
@@ -134,8 +151,16 @@
     let route = parseRoute();
     if (REDIRECTS[route.path]) { location.replace(REDIRECTS[route.path]); return; }
     if (app.user && !WH.people.get(app.user)) app.user = null;
-    if (route.name === 'root') route = Object.assign(route, { name: app.user ? 'home' : 'welcome' });
-    if (!app.user && route.name !== 'about') route = { name: 'welcome', params: [] };
+    const entry = team() ? 'signin' : 'welcome';
+    const publicPages = team() ? ['signin', 'join', 'reset', 'about'] : ['welcome', 'about'];
+    if (!team() && ['signin', 'join', 'reset', 'settings'].includes(route.name)) route = { name: 'welcome', params: [], path: '/welcome' };
+    if (team() && route.name === 'welcome') route = { name: 'signin', params: [], path: '/signin' };
+    if (route.name === 'root') route = Object.assign(route, { name: app.user ? 'home' : entry });
+    if (!app.user && !publicPages.includes(route.name)) {
+      if (team() && route.path && route.path !== '/') app.afterSignIn = '#' + route.path;
+      route = { name: entry, params: [], path: '/' + entry };
+    }
+    if (app.user && team() && route.name === 'signin') route = Object.assign(parseRouteFrom('#/home'), {});
     app.route = route;
 
     // Remember the page under a panel, so closing returns there.
@@ -146,10 +171,10 @@
     let html;
     let panelHtml = '';
     try {
-      if (route.name === 'welcome') {
-        html = WH.views.welcome(app);
+      if (SOLO.includes(route.name)) {
+        html = WH.views[route.name](app, route);
       } else if (!app.user) {
-        html = '<main id="main" tabindex="-1" class="solo">' + WH.views.about(app) + '<p><a href="#/welcome">Back to profiles</a></p></main>';
+        html = '<main id="main" tabindex="-1" class="solo">' + WH.views.about(app) + '<p><a href="#/' + entry + '">' + (team() ? 'Back to sign in' : 'Back to profiles') + '</a></p></main>';
       } else if (route.name === 'notFound' || (route.name !== 'panel' && !WH.views[route.name])) {
         html = '<h1>Page not found</h1><p><a href="#/home">Back to Home</a></p>';
       } else {
@@ -169,11 +194,14 @@
     const samePage = app.lastPath === route.path;
     const sections = {};
     if (samePage) root.querySelectorAll('details[id]').forEach((d) => { sections[d.id] = d.open; });
+    const typed = samePage && o.keepInputs ? keepTyped(root) : null;
     app.lastPath = route.path;
-    root.innerHTML = (route.name === 'welcome' || !app.user) ? html : shell(html, panelHtml);
+    root.innerHTML = (SOLO.includes(route.name) || !app.user) ? html : shell(html, panelHtml);
     Object.keys(sections).forEach((id) => { const d = document.getElementById(id); if (d) d.open = sections[id]; });
+    root.querySelectorAll('form[data-form]').forEach((f) => { f.baseRev = app.rev; });
+    if (typed) restoreTyped(root, typed, o.keepBase);
     document.body.classList.toggle('panel-open', !!panelHtml);
-    document.title = pageTitle(route) + ' · Communications Workspace (demo)';
+    document.title = pageTitle(route) + ' · Communications Workspace' + (team() ? '' : ' (demo)');
 
     const panelBody = document.getElementById('panel-body');
     if (o.focus) {
@@ -196,6 +224,56 @@
   }
   app.render = render;
 
+  function parseRouteFrom(hash) {
+    const path = hash.slice(1);
+    for (const [re, name, extra] of ROUTES) {
+      const m = path.match(re);
+      if (m) return Object.assign({ name, params: m.slice(1), path }, extra || {});
+    }
+    return { name: 'home', params: [], path: '/home' };
+  }
+
+  // ---------- keeping typed text when the page is redrawn with newer data ----------
+
+  const formKey = (f) => f.getAttribute('data-form') + '|' + (f.getAttribute('data-id') || '');
+
+  /** Remembers what the person has typed or changed (and which revision the form started from). */
+  function keepTyped(root) {
+    const out = {};
+    root.querySelectorAll('form[data-form]').forEach((f) => {
+      const changed = [];
+      Array.from(f.elements).forEach((el) => {
+        if (!el.name || el.type === 'file') return;
+        if (el.type === 'checkbox' || el.type === 'radio') { if (el.checked !== el.defaultChecked) changed.push({ name: el.name, value: el.value, checked: el.checked }); }
+        else if (el.tagName === 'SELECT') { if (Array.from(el.options).some((o) => o.selected !== o.defaultSelected)) changed.push({ name: el.name, value: el.value }); }
+        else if (el.value !== el.defaultValue) changed.push({ name: el.name, value: el.value, start: el.selectionStart, end: el.selectionEnd });
+      });
+      if (changed.length) out[formKey(f)] = { changed, baseRev: f.baseRev };
+    });
+    return out;
+  }
+
+  function restoreTyped(root, typed, keepBase) {
+    root.querySelectorAll('form[data-form]').forEach((f) => {
+      const k = typed[formKey(f)];
+      if (!k) return;
+      k.changed.forEach((c) => {
+        const els = Array.from(f.elements).filter((el) => el.name === c.name);
+        els.forEach((el) => {
+          if (el.type === 'checkbox') { if (el.value === c.value) el.checked = c.checked; }
+          else if (el.type === 'radio') { el.checked = el.value === c.value && c.checked; }
+          else {
+            el.value = c.value;
+            if (el === document.activeElement && c.start !== null && c.start !== undefined) { try { el.setSelectionRange(c.start, c.end); } catch (e) { /* not a text field */ } }
+          }
+        });
+      });
+      // A form someone was already filling in keeps the revision it started from, so the
+      // server can tell if someone else changed the same thing in the meantime.
+      if (keepBase && k.baseRev !== undefined) f.baseRev = k.baseRev;
+    });
+  }
+
   function parseBase() {
     const hash = app.ui.base || '#/home';
     const path = decodeURIComponent(hash.slice(1));
@@ -208,7 +286,8 @@
 
   function pageTitle(route) {
     if (route.name === 'panel') return ({ task: 'Task', requestForm: 'Request', priorities: 'Priorities', meetingForm: 'Request a meeting' })[route.panel] || 'Details';
-    return ({ welcome: 'Welcome', home: 'Home', tasks: 'Tasks', calendar: 'Calendar', about: 'About this prototype' })[route.name] || 'Page';
+    return ({ welcome: 'Welcome', signin: 'Sign in', join: 'Create your account', reset: 'Choose a new password', settings: 'Workspace settings', home: 'Home', tasks: 'Tasks', calendar: 'Calendar',
+      about: team() ? 'About this workspace' : 'About this prototype' })[route.name] || 'Page';
   }
 
   // ---------- changes ----------
@@ -217,26 +296,71 @@
    * Runs a change, saves, re-renders and shows a message.
    * Validation and permission errors are shown to the person instead of being swallowed.
    */
-  function mutate(fn, message, opts) {
+  /**
+   * Applies a change. Demo: runs it and saves in this browser. Team workspace: sends it to the
+   * server, which checks it again and saves it for everyone. Resolves with the change's result.
+   */
+  function apply(fn, opts) {
     const o = opts || {};
+    if (team()) return WH.remote.apply(app, fn, o.base);
     let result;
     try {
       result = fn();
     } catch (e) {
+      return Promise.reject(e);
+    }
+    if (!WH.store.save(app.state)) toast('Could not save in this browser. Changes will be lost on refresh.', 'error');
+    return Promise.resolve(result);
+  }
+  app.apply = apply;
+
+  function setBusy(form, busy) {
+    if (!form) return;
+    form.setAttribute('aria-busy', busy ? 'true' : 'false');
+    form.querySelectorAll('button[type="submit"]').forEach((b) => { b.disabled = busy; });
+  }
+
+  /**
+   * Runs a change, saves, re-renders and shows a message.
+   * Validation, permission and conflict errors are shown to the person instead of being swallowed.
+   */
+  function mutate(fn, message, opts) {
+    const o = opts || {};
+    const base = o.form && o.form.baseRev !== undefined ? o.form.baseRev : app.rev;
+    setBusy(o.form, true);
+    return apply(fn, { base }).then((result) => {
+      if (o.go) go(o.go); else render();
+      if (message) toast(typeof message === 'function' ? message(result) : message);
+      const warnings = result && result.warnings;
+      if (warnings && warnings.length) warnings.forEach((w) => toast(w, 'warn'));
+      return result || true;
+    }, (e) => {
+      setBusy(o.form, false);
       handleError(e, o.form);
       return null;
-    }
-    const saved = WH.store.save(app.state);
-    if (o.go) go(o.go); else render();
-    if (!saved) toast('Could not save in this browser. Changes will be lost on refresh.', 'error');
-    else if (message) toast(typeof message === 'function' ? message(result) : message);
-    const warnings = result && result.warnings;
-    if (warnings && warnings.length) warnings.forEach((w) => toast(w, 'warn'));
-    return result || true;
+    });
   }
   app.mutate = mutate;
 
+  /** After a redraw, finds the form that replaced `old` (same form and item). */
+  function sameForm(old) {
+    if (!old) return null;
+    const id = old.getAttribute('data-id');
+    return document.querySelector('form[data-form="' + CSS.escape(old.getAttribute('data-form')) + '"]' + (id ? '[data-id="' + CSS.escape(id) + '"]' : ''));
+  }
+
   function handleError(e, form) {
+    if (e && e.name === 'SignInError') { signedOut(e.message); return; }
+    if (e && e.name === 'ConflictError') {
+      // Someone else changed the same thing: show the latest version, keep what this person typed.
+      render({ keepInputs: true });
+      const f = sameForm(form);
+      if (f) {
+        for (let d = f.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+        showErrors(f, { _conflict: e.message });
+      } else toast(e.message, 'error');
+      return;
+    }
     if (e instanceof WH.util.ValidationError) {
       if (form) showErrors(form, e.fields);
       else toast(e.message, 'error');
@@ -418,6 +542,26 @@
     go('#/welcome');
   };
 
+  function signedOut(message) {
+    if (team()) WH.remote.stopPolling();
+    app.user = null;
+    app.state = null;
+    go('#/signin');
+    if (message) toast(message, 'warn');
+  }
+  app.signedOut = signedOut;
+
+  WH.actions['sign-out'] = () => {
+    WH.remote.signOut(app).then(() => { go('#/signin'); toast('Signed out.'); });
+  };
+
+  WH.actions.reload = () => location.reload();
+
+  WH.actions['skip-to-main'] = () => {
+    const m = document.getElementById('main');
+    if (m) m.focus();
+  };
+
   WH.actions['reset-data'] = (a) => {
     if (!window.confirm('Reset all data to the original fictional sample? Your changes in this browser, including uploaded files, will be removed.')) return;
     a.state = WH.store.reset();
@@ -427,7 +571,26 @@
 
   // ---------- start ----------
 
+  function bindEvents() {
+    document.addEventListener('click', onClick);
+    document.addEventListener('submit', onSubmit);
+    document.addEventListener('change', onChange);
+    document.addEventListener('input', onInput);
+    document.addEventListener('keydown', onKeydown);
+    window.addEventListener('hashchange', () => render({ focus: true }));
+  }
+
+  function startTeam() {
+    bindEvents();
+    document.getElementById('app').innerHTML = '<main id="main" class="solo" tabindex="-1"><p class="muted">Opening the workspace…</p></main>';
+    WH.remote.init(app).then(() => render({ focus: false })).catch((e) => {
+      document.getElementById('app').innerHTML = '<main id="main" class="solo" tabindex="-1"><div class="callout danger"><p>' + esc(e.message) +
+        '</p><p><button type="button" class="btn" data-action="reload">Try again</button></p></div></main>';
+    });
+  }
+
   function start() {
+    if (team()) { startTeam(); return; }
     app.state = WH.store.load();
     app.user = WH.store.getProfile();
     if (app.user && !WH.people.get(app.user)) app.user = null;
@@ -439,12 +602,7 @@
     if (!WH.store.storageOk()) {
       setTimeout(() => toast('This browser is blocking local storage. Changes will not be saved after refresh.', 'error'), 300);
     }
-    document.addEventListener('click', onClick);
-    document.addEventListener('submit', onSubmit);
-    document.addEventListener('change', onChange);
-    document.addEventListener('input', onInput);
-    document.addEventListener('keydown', onKeydown);
-    window.addEventListener('hashchange', () => render({ focus: true }));
+    bindEvents();
     // Keep tabs of the same browser in sync.
     window.addEventListener('storage', (e) => {
       if (e.key === 'wh-comms-prototype-v1') { app.state = WH.store.load(); render(); }

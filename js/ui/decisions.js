@@ -124,7 +124,7 @@
         competing(app, s, cw) + '<div id="decision-preview" class="small" aria-live="polite"></div><div data-field="moves"></div>' +
         ui.field({ name: 'reason', label: 'Reason', type: 'textarea', rows: 2, required: true, id: 'dec-reason', hint: 'Recorded in each task’s history.' }) +
         '<button type="submit" class="btn primary">Propose changes to Maha</button></form>'
-      : competing(app, s, cw) + '<p class="small muted">' + (app.user === 'maha' ? 'Carla decides what moves. You confirm the dates above.' : 'Carla decides what moves; Maha confirms the dates.') + '</p>';
+      : competing(app, s, cw) + '<p class="small muted">' + (WH.permissions.isOwner(app.user) ? 'Carla decides what moves. You confirm the dates above.' : 'Carla decides what moves; Maha confirms the dates.') + '</p>';
 
     const html = '<p class="small muted">Carla resolves competing priorities and proposes what moves. Maha confirms the revised dates.</p>' +
       (pending.length ? '<h3 class="sub-head">Waiting for Maha to confirm</h3>' + pending.map((p) => proposalCard(app, p)).join('') : '') +

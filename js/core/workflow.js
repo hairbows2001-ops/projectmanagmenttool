@@ -177,7 +177,7 @@
       allocations: [],
       coveredBySocial: false,
       // Completed work on managers' requests needs Carla's approval before it is closed.
-      approvalRequired: actor !== 'maha',
+      approvalRequired: !P.isOwner(actor),
       plannedDates: [],
       documents: [],
       links,

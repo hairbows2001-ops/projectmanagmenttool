@@ -20,6 +20,7 @@
       if (f.priority === 'none' && t.priority) return false;
       if (f.priority && f.priority !== 'none' && t.priority !== f.priority) return false;
       if (f.project && t.project !== f.project) return false;
+      if (f.requestApproval && (!t.requestApproval || t.requestApproval.status !== f.requestApproval)) return false;
       if (f.from || f.to) {
         const dates = [t.agreedDeadline, t.requestedDeadline].filter(Boolean);
         const hit = dates.some((d) => (!f.from || d >= f.from) && (!f.to || d <= f.to));
@@ -53,6 +54,7 @@
         .concat(Object.keys(W.STATUSES).map((k) => opt(k, W.STATUSES[k])))) +
       sel('priority', 'Priority', [opt('', 'Any'), opt('none', 'No priority set')].concat(Object.keys(W.PRIORITIES).map((k) => opt(k, k + ' ' + W.PRIORITIES[k])))) +
       sel('project', 'Project', [opt('', 'All projects')].concat(projects.map((p) => opt(p, p)))) +
+      sel('requestApproval', 'Request approval', [opt('', 'Any')].concat(Object.keys(WH.approval.REQUEST_APPROVAL).map((k) => opt(k, WH.approval.REQUEST_APPROVAL[k])))) +
       ui.field({ name: 'from', label: 'Deadline from', type: 'date', value: f.from, id: 'flt-from' }).replace('<input', '<input data-change="filter"') +
       ui.field({ name: 'to', label: 'Deadline to', type: 'date', value: f.to, id: 'flt-to' }).replace('<input', '<input data-change="filter"') +
       '</form>';
@@ -70,7 +72,7 @@
           '<div class="muted small">' + esc(people.name(t.requesterId)) + '</div>' +
           '<div class="small">Requested: ' + (t.requestedDeadline ? esc(D.fmtShort(t.requestedDeadline)) : 'not known') +
           ' · Agreed: ' + (t.agreedDeadline ? esc(D.fmtShort(t.agreedDeadline)) : '—') + '</div>' +
-          '<div class="chips">' + ui.priorityChip(t) + ui.blockedChip(t) + ui.urgencyChip(t) + '</div>' +
+          '<div class="chips">' + ui.priorityChip(t) + ui.blockedChip(t) + ui.requestApprovalChip(t) + ui.urgencyChip(t) + '</div>' +
           '<div class="small" style="margin-top:6px">Effort: ' + ui.effortText(t) + '</div>' +
           (t.sample ? '<div class="small muted">Fictional sample</div>' : '') + '</article>').join('')
           : '<p class="empty small">None</p>') + '</section>';
@@ -100,7 +102,7 @@
   };
 
   WH.actions['clear-filters'] = (app) => {
-    app.ui.filters = { requester: '', status: 'open', priority: '', project: '', from: '', to: '' };
+    app.ui.filters = { requester: '', status: 'open', priority: '', project: '', requestApproval: '', from: '', to: '' };
     app.render();
   };
 

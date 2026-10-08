@@ -200,6 +200,12 @@ dl.facts dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .chip.urgent { background: var(--warn-soft); color: var(--warn-ink); border-color: #e2c08e; }
 .chip.estimate-needed { background: var(--warn-soft); color: var(--warn-ink); border: 1px dashed #c99a59; }
 .chip.pending { border-style: dashed; }
+/* Request approval chips (distinct from the completed-work "Awaiting approval" status) */
+.chip.ra { border-radius: 4px; }
+.chip.ra-not_required { background: transparent; color: var(--ink-2); font-weight: 500; }
+.chip.ra-pending { background: var(--warn-soft); color: var(--warn-ink); border: 1px dashed #c99a59; }
+.chip.ra-approved { background: var(--green-soft); color: var(--green-ink); border-color: var(--green); }
+.chip.ra-declined { background: var(--danger-soft); color: var(--danger-ink); border-color: #e3aaa3; }
 .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
 /* ---------- buttons & forms ---------- */
@@ -318,7 +324,7 @@ table.tasks .sub { display: block; font-size: 0.8rem; color: var(--ink-2); }
 
 /* ---------- filters ---------- */
 
-.filters { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; align-items: end; margin-bottom: 18px; padding: 16px 18px; }
+.filters { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; align-items: end; margin-bottom: 18px; padding: 16px 18px; }
 .filters .field { margin: 0; }
 .filters label { font-size: 0.78rem; }
 .segmented { display: inline-flex; border: 1px solid var(--ink); border-radius: 999px; overflow: hidden; }
@@ -427,7 +433,7 @@ a.ev:hover { text-decoration: underline; }
 /* ---------- responsive ---------- */
 
 @media (max-width: 1100px) {
-  .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -481,3 +487,17 @@ a.ev:hover { text-decoration: underline; }
   .notice, .sidenav, .topbar .btn, .toast-region { display: none; }
   body { background: #fff; }
 }
+
+/* ---------- simulated email ---------- */
+
+.email-sim { border: 1px dashed var(--rule-strong); border-radius: var(--radius); background: #fffdf9; }
+.email-head { display: grid; grid-template-columns: 6em 1fr; gap: 2px 10px; font-size: 0.85rem; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+.email-head dt { color: var(--ink-2); }
+.email-head dd { margin: 0; overflow-wrap: anywhere; }
+.email-body { white-space: pre-wrap; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.8rem; line-height: 1.5; padding: 14px 16px; margin: 0; overflow-wrap: anywhere; }
+.sim-label { display: inline-block; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--warn-ink); background: var(--warn-soft); border: 1px dashed #c99a59; padding: 2px 8px; border-radius: 4px; }
+.outcome { font-weight: 700; }
+.outcome-applied { color: var(--green-ink); }
+.outcome-ambiguous { color: var(--warn-ink); }
+.outcome-rejected { color: var(--danger-ink); }
+.outcome-ignored { color: var(--ink-2); }

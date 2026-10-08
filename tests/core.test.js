@@ -95,7 +95,7 @@ test('creating a request: required fields, requester from profile, urgency is no
   assert.equal(t.status, 'submitted');
   assert.equal(t.priority, null);
   assert.equal(t.dateUnknown, true);
-  assert.equal(t.history.length, 1);
+  assert.equal(t.history[0].action, 'Request submitted');
   assert.equal(t.history[0].by, 'lina');
 });
 
@@ -116,6 +116,9 @@ test('full workflow: clarify, estimate, schedule, start, submit, revise, approve
   assert.equal(t.status, 'clarification');
   W.provideInfo(st, 'christine', t.id, 'Letter size');
   assert.equal(t.status, 'submitted');
+  // Christine's requests need Carla's request approval before scheduling.
+  assert.throws(() => W.scheduleTask(st, 'maha', t.id, { agreedDeadline: '2026-10-16', allocations: [{ weekStart: W0, hours: 5 }] }), (e) => !!e.fields.requestApproval);
+  W.decideRequest(st, 'carla', t.id, 'approve');
 
   assert.throws(() => W.scheduleTask(st, 'maha', t.id, { agreedDeadline: '2026-10-16', allocations: [{ weekStart: W0, hours: 2 }] }), (e) => !!e.fields.estimate);
   assert.throws(() => W.setEstimate(st, 'maha', t.id, 0), (e) => !!e.fields.estimate);

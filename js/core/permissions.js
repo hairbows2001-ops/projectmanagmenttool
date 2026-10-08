@@ -55,6 +55,7 @@
       case 'proposal.confirm':
       case 'proposal.decline':
       case 'meeting.respond':
+      case 'request.resendEmail':
       case 'capacity.adjust':
       case 'event.manage':
         return isOwner(userId);
@@ -64,6 +65,7 @@
       case 'task.requestRevisions':
       case 'task.setPriority':
       case 'proposal.create':
+      case 'request.decide':
         return isExec(userId);
 
       case 'task.cancel':

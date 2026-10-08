@@ -44,6 +44,8 @@
       '<form class="card" data-form="' + (editing ? 'request-edit' : 'request-create') + '" data-id="' + esc(editing || '') + '" novalidate style="max-width:860px">' +
       '<fieldset><legend>The basics</legend><p class="fieldset-note">Fields marked <span class="req">*</span> are required.</p>' +
       '<p class="small">Requested by <strong>' + esc(editing ? people.name(t.requesterId) : me.name) + '</strong>, from your profile.</p>' +
+      '<div class="callout info small"><p>' + esc(WH.approval.ruleText(editing ? t.requesterId : me.id).replace(/^Required: /, 'Request approval: ').replace(/^Not required: /, 'No request approval needed. ')) +
+      (editing && WH.approval.requiresApproval(t.requesterId) ? ' Changing the title, description, deliverable, audience, purpose, requested deadline or urgency starts a new version that Carla must approve again.' : '') + '</p></div>' +
       ui.field({ name: 'title', label: 'Task title', required: true, value: t.title, hint: 'A short name, e.g. “Holiday donor card”' }) +
       ui.field({ name: 'description', label: 'What is needed?', type: 'textarea', required: true, value: t.description, hint: 'A few sentences is enough.' }) +
       '</fieldset>' +

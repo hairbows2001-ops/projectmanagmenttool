@@ -11,3 +11,6 @@
   no Outlook connection. Do not claim otherwise. See README.md and docs/before-real-use.md.
 - Capacity: 37.7 h/week authoritative, 6 h social media reserve, allocations per week, remaining effort used,
   "Estimate needed" never counted as zero, pending requests shown separately.
+- Request approval (js/core/approval.js + workflow.js) is separate from completed-work approval (`task.approval`).
+  Exempt requesters live in js/core/config.js. Emails are SIMULATED records (`state.emails`, `state.inbound`,
+  `state.notifications`); never claim real email is sent. Carla's address is intentionally null.

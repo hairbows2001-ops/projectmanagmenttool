@@ -13,13 +13,15 @@
   const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
   let storageWorks = true;
+  let upgraded = false;
 
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && data.schemaVersion === 1) return data;
+        if (data && data.schemaVersion === 2) return data;
+        if (data && data.schemaVersion) upgraded = true; // older prototype data: replaced with the new sample
       }
     } catch (e) {
       storageWorks = false;
@@ -101,5 +103,5 @@
     return tx('readwrite', (store) => store.clear()).catch(() => {});
   }
 
-  WH.store = { load, save, reset, getProfile, setProfile, saveFile, getFile, MAX_FILE_BYTES, storageOk: () => storageWorks };
+  WH.store = { load, save, reset, getProfile, setProfile, saveFile, getFile, MAX_FILE_BYTES, storageOk: () => storageWorks, wasUpgraded: () => upgraded };
 })(globalThis.WH = globalThis.WH || {});

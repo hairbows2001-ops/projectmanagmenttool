@@ -22,7 +22,7 @@
     route: { name: 'welcome', params: [] },
     ui: {
       workloadView: 'list',
-      filters: { requester: '', status: 'open', priority: '', project: '', from: '', to: '' },
+      filters: { requester: '', status: 'open', priority: '', project: '', requestApproval: '', from: '', to: '' },
       calView: 'month',
       calCursor: null,
       decisionWeek: null
@@ -46,6 +46,7 @@
     [/^\/requests\/new$/, 'requestForm'],
     [/^\/tasks\/([^/]+)\/edit$/, 'requestForm'],
     [/^\/tasks\/([^/]+)$/, 'task'],
+    [/^\/email$/, 'email'],
     [/^\/about$/, 'about']
   ];
 
@@ -79,6 +80,7 @@
       ['capacity', '#/capacity', 'Capacity', 'gauge'],
       ['decisions', '#/decisions', 'Priorities & decisions', 'scale', conflictCount],
       ['meetings', '#/meetings', 'Meetings', 'users', pendingMeetings],
+      ['email', '#/email', 'Simulated email', 'mail', (s.emails || []).filter((e) => WH.workflow.emailStatus(e) === 'awaiting_reply').length],
       ['about', '#/about', 'About this prototype', 'info']
     ];
   }
@@ -91,7 +93,7 @@
       '<li><a href="' + href + '"' + (current === key ? ' aria-current="page"' : '') + '>' + ui.icon(ic).replace('<svg', '<svg width="18" height="18"') +
       '<span>' + esc(label) + '</span>' + (count ? '<span class="nav-count" aria-label="' + count + ' items">' + count + '</span>' : '') + '</a></li>').join('');
     const cta = p.role === 'owner'
-      ? '<a class="btn accent" href="#/capacity">' + ui.icon('plus') + 'Add event or leave</a>'
+      ? '<a class="btn accent" href="#/capacity">' + ui.icon('plus') + 'Add event or leave</a><a class="btn" href="#/requests/new">' + ui.icon('plus') + 'Add my own task</a>'
       : '<a class="btn primary" href="#/requests/new">' + ui.icon('plus') + 'Request a task</a><a class="btn" href="#/meetings/new">' + ui.icon('users') + 'Request a meeting</a>';
     return '<header class="topbar"><a class="brand" href="#/dashboard"><span class="brand-name">Communications Workspace</span>' +
       '<span class="brand-org">Women’s Habitat of Etobicoke</span></a>' +
@@ -168,7 +170,7 @@
     return ({
       welcome: 'Welcome', dashboard: 'Dashboard', workload: 'Shared workload', calendar: 'Calendar', capacity: 'Capacity',
       decisions: 'Priorities & decisions', meetings: 'Meetings', meetingForm: 'Request a meeting', requestForm: 'Request a task',
-      task: 'Task', about: 'About this prototype'
+      task: 'Task', email: 'Simulated email', about: 'About this prototype'
     })[name] || 'Page';
   }
 
@@ -290,6 +292,7 @@
     ev.preventDefault();
     const handler = WH.forms[form.getAttribute('data-form')];
     if (!handler) return;
+    if (ev.submitter && ev.submitter.name === 'decision') form.setAttribute('data-decision', ev.submitter.value);
     clearErrors(form);
     handler(app, form, formData(form));
   }
@@ -329,6 +332,9 @@
     app.state = WH.store.load();
     app.user = WH.store.getProfile();
     if (app.user && !WH.people.get(app.user)) app.user = null;
+    if (WH.store.wasUpgraded()) {
+      setTimeout(() => toast('The prototype was updated with request approval. Sample data was refreshed.', 'warn'), 300);
+    }
     if (!WH.store.storageOk()) {
       setTimeout(() => toast('This browser is blocking local storage. Changes will not be saved after refresh.', 'error'), 300);
     }

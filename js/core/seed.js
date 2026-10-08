@@ -282,7 +282,50 @@
       { at: stamp(day(1), '10:30'), by: 'carla', action: 'Proposed schedule change', detail: 'Week of ' + D.fmtWeek(wk(1)), ref: 'sample-p1' }
     ];
 
-    return { schemaVersion: 1, seededAt: now.toISOString(), seededWeek: w0, tasks, meetings, events, capacity, proposals, log };
+    const state = { schemaVersion: 2, seededAt: now.toISOString(), seededWeek: w0, tasks, meetings, events, capacity, proposals, log,
+      emails: [], notifications: [], inbound: [] };
+
+    // Request approval (separate from completed-work approval).
+    // Lina, Carla and Maha are exempt. Other managers' scheduled work was approved earlier in the app;
+    // their unscheduled requests are waiting for Carla, each with a SIMULATED approval email.
+    const pendingIds = ['sample-flyer', 'sample-job-posts', 'sample-budget'];
+    tasks.forEach((t) => {
+      t.briefVersion = 1;
+      if (!WH.approval.requiresApproval(t.requesterId)) {
+        t.requestApproval = { status: 'not_required', version: 1 };
+        return;
+      }
+      const submitted = t.history[0].at;
+      const later = (mins) => new Date(new Date(submitted).getTime() + mins * 60000).toISOString();
+      if (pendingIds.includes(t.id)) {
+        t.requestApproval = { status: 'pending', version: 1, requestedAt: submitted, decidedBy: null, decidedAt: null, channel: null, note: '' };
+        t.history.splice(1, 0, { at: submitted, by: t.requesterId, action: 'Request approval: Pending', detail: 'New request · version 1' });
+      } else if (t.id === 'sample-camp-recap') {
+        t.requestApproval = { status: 'pending', version: 1, requestedAt: submitted, decidedBy: null, decidedAt: null, channel: null, note: '' };
+      } else {
+        t.requestApproval = { status: 'approved', version: 1, requestedAt: submitted, decidedBy: 'carla', decidedAt: later(90), channel: 'in_app', note: '' };
+        t.history.splice(1, 0, { at: later(90), by: 'carla', action: 'Request approved', detail: 'Version 1 · In the app' });
+      }
+    });
+
+    const byId = (id) => tasks.find((t) => t.id === id);
+    WH.workflow.createApprovalEmail(state, byId('sample-flyer'), 'christine', byId('sample-flyer').history[0].at);
+    WH.workflow.createApprovalEmail(state, byId('sample-job-posts'), 'leslie', byId('sample-job-posts').history[0].at);
+
+    // Sheila changed the requested deadline after her first email, so version 1 is outdated.
+    const budget = byId('sample-budget');
+    budget.requestedDeadline = day(23);
+    WH.workflow.createApprovalEmail(state, budget, 'sheila', budget.history[0].at);
+    budget.requestedDeadline = day(25);
+    budget.briefVersion = 2;
+    state.emails[state.emails.length - 1].status = 'superseded';
+    budget.requestApproval = Object.assign({}, budget.requestApproval, { version: 2, requestedAt: stamp(day(-1), '15:10') });
+    budget.history.push(
+      { at: stamp(day(-1), '15:10'), by: 'sheila', action: 'Brief edited', detail: 'Requested deadline: ' + D.fmtShort(day(23)) + ' → ' + D.fmtShort(day(25)) },
+      { at: stamp(day(-1), '15:10'), by: 'sheila', action: 'Request approval: Pending', detail: 'Material change (Requested deadline) · version 2' });
+    WH.workflow.createApprovalEmail(state, budget, 'sheila', stamp(day(-1), '15:10'));
+
+    return state;
   }
 
   WH.seed = { build, stamp };

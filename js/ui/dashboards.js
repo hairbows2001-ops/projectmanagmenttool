@@ -47,6 +47,29 @@
       (outside ? '<span>Partly outside regular hours</span>' : '') + (e.sample ? '<span>Fictional sample</span>' : '') + '</div></li>';
   }
 
+  /** Simulated notices sent to this person (nothing is actually emailed). */
+  function noticesCard(app) {
+    const list = (app.state.notifications || []).filter((n) => n.toUserId === app.user).slice().sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 5);
+    if (!list.length) return '';
+    return card('Notices', '<p class="small muted"><span class="sim-label">Simulated</span> These would be emailed in the real system.</p><ul class="rows">' +
+      list.map((n) => '<li><div class="row-line">' + (n.taskId ? '<a class="row-title" href="#/tasks/' + encodeURIComponent(n.taskId) + '">' + esc(n.subject) + '</a>' : '<span class="row-title">' + esc(n.subject) + '</span>') + '</div>' +
+        '<div class="row-meta"><span>' + esc(D.fmtStamp(n.at)) + '</span></div><p class="small" style="margin:4px 0 0">' + esc(n.text) + '</p></li>').join('') + '</ul>',
+    { link: '<a href="#/email">Simulated email</a>' });
+  }
+
+  function requestApprovalList(tasks, withActions) {
+    if (!tasks.length) return '<p class="empty">No requests are waiting for Carla\u2019s approval.</p>';
+    return '<ul class="rows">' + tasks.map((t) => '<li><div class="row-line"><a class="row-title" href="#/tasks/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a>' + ui.requestApprovalChip(t) + '</div>' +
+      '<div class="row-meta"><span>' + esc(people.name(t.requesterId)) + '</span><span>' + (t.estimateHours > 0 ? fmtHours(t.estimateHours) : 'Estimate pending') + '</span>' +
+      '<span>Requested ' + (t.requestedDeadline ? esc(D.fmtShort(t.requestedDeadline)) : 'date not known') + '</span>' + (t.requestedUrgency === 'urgent' ? '<span>Requested as urgent</span>' : '') +
+      '<span>Version ' + (t.briefVersion || 1) + '</span>' + (t.sample ? '<span>Fictional sample</span>' : '') + '</div>' +
+      (withActions ? '<div class="btn-row" style="margin-top:8px"><button type="button" class="btn small accent" data-action="quick-request-decision" data-decision="approve" data-id="' + esc(t.id) + '">' + ui.icon('check') + 'Approve request</button>' +
+        '<button type="button" class="btn small danger" data-action="quick-request-decision" data-decision="decline" data-id="' + esc(t.id) + '">' + ui.icon('x') + 'Decline</button>' +
+        '<a class="btn small quiet" href="#/tasks/' + encodeURIComponent(t.id) + '">Open brief</a></div>' : '') + '</li>').join('') + '</ul>';
+  }
+
+  const pendingRequestApproval = (s) => s.tasks.filter((t) => OPEN.includes(t.status) && t.requestApproval && t.requestApproval.status === 'pending');
+
   // ---------- Maha ----------
 
   function mahaDashboard(app) {
@@ -107,7 +130,8 @@
     const counts = [
       newRequests.length + ' new request' + (newRequests.length === 1 ? '' : 's'),
       clarification.length + ' awaiting clarification',
-      awaiting.length + ' with Carla for approval',
+      pendingRequestApproval(s).length + ' request' + (pendingRequestApproval(s).length === 1 ? '' : 's') + ' awaiting Carla\u2019s request approval',
+      awaiting.length + ' finished with Carla for approval',
       conflicts.filter((c) => c.kind === 'committed').length + ' week' + (conflicts.filter((c) => c.kind === 'committed').length === 1 ? '' : 's') + ' over capacity'
     ];
 
@@ -117,10 +141,12 @@
       card('Today', todayBody, { tone: 'accent', link: '<a href="#/calendar" data-action="cal-goto-week">Week view</a>' }) +
       card('New requests to review', ui.taskRows(newRequests, { empty: 'No new requests.', showPriority: true, extra: (t) => (t.estimateHours > 0 ? fmtHours(t.estimateHours) + ' estimated' : 'Estimate needed') + ' · Requested ' + (t.requestedDeadline ? D.fmtShort(t.requestedDeadline) : 'date not known') }), { count: newRequests.length, tone: newRequests.length ? 'attention' : '' }) +
       card('Needs clarification', ui.taskRows(clarification, { empty: 'Nothing waiting on clarification.', extra: (t) => 'Waiting on ' + esc(people.first(t.requesterId)) }), { count: clarification.length }) +
-      card('Awaiting Carla’s approval', ui.taskRows(awaiting, { empty: 'Nothing waiting for approval.', extra: (t) => 'Submitted ' + (t.approval ? D.fmtStamp(t.approval.submittedAt) : '') }), { count: awaiting.length }) +
+      card('Waiting for Carla\u2019s request approval', '<p class="small muted">You can clarify and estimate these, but not schedule them yet.</p>' + requestApprovalList(pendingRequestApproval(s), false), { count: pendingRequestApproval(s).length }) +
+      card('Completed work awaiting Carla\u2019s approval', ui.taskRows(awaiting, { empty: 'Nothing waiting for approval.', extra: (t) => 'Submitted ' + (t.approval ? D.fmtStamp(t.approval.submittedAt) : '') }), { count: awaiting.length }) +
       '</div><div class="stack">' +
       ui.capacityCard(summary, { title: 'This week’s capacity' }) +
       card('Conflicts and decisions', decisions.length ? '<ul class="rows">' + decisions.join('') + '</ul>' : '<p class="empty">No conflicts or pending decisions.</p>', { tone: decisions.length ? 'alert' : 'good', link: '<a href="#/decisions">Priorities &amp; decisions</a>' }) +
+      noticesCard(app) +
       '</div></div>';
   }
 
@@ -154,6 +180,7 @@
     const mineOpen = mine.filter((t) => OPEN.includes(t.status)).sort(byPriorityThenDate);
     const mineClosed = mine.filter((t) => !OPEN.includes(t.status));
     const needInfo = mine.filter((t) => t.status === 'clarification');
+    const declined = mine.filter((t) => OPEN.includes(t.status) && t.requestApproval && t.requestApproval.status === 'declined');
     const counterMeetings = s.meetings.filter((m) => m.requesterId === me && m.status === 'counter');
     const horizon = D.addDays(today, 30);
     const upcoming = mineOpen
@@ -161,8 +188,9 @@
       .filter((x) => x.date && x.date <= horizon)
       .sort((a, b) => (a.date < b.date ? -1 : 1));
 
-    const inputBody = (needInfo.length || counterMeetings.length)
-      ? '<ul class="rows">' + needInfo.map((t) => {
+    const inputBody = (needInfo.length || counterMeetings.length || declined.length)
+      ? '<ul class="rows">' + declined.map((t) => '<li><div class="row-line"><a class="row-title" href="#/tasks/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a>' + ui.requestApprovalChip(t) + '</div>' +
+        '<div class="row-meta"><span>' + (t.requestApproval.note ? 'Carla: \u201c' + esc(t.requestApproval.note) + '\u201d' : 'Declined by Carla') + '</span><span>Revise the brief to ask again, or cancel</span></div></li>').join('') + needInfo.map((t) => {
         const q = t.comments.filter((c) => c.kind === 'clarification').pop();
         return '<li><div class="row-line"><a class="row-title" href="#/tasks/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a>' + ui.statusChip(t.status) + '</div>' +
           (q ? '<div class="row-meta"><span>Maha asks: “' + esc(q.text) + '”</span></div>' : '') + '</li>';
@@ -201,7 +229,7 @@
           '<div class="row-meta"><span>' + esc(people.name(t.requesterId)) + '</span>' + (t.approval && t.approval.note ? '<span>Maha: ' + esc(t.approval.note) + '</span>' : '') + '</div>' +
           '<div class="btn-row" style="margin-top:8px"><button type="button" class="btn small accent" data-action="quick-approve" data-id="' + esc(t.id) + '">' + ui.icon('check') + 'Approve</button>' +
           '<a class="btn small" href="#/tasks/' + encodeURIComponent(t.id) + '">Review or request revisions</a></div></li>').join('') + '</ul>'
-        : '<p class="empty">Nothing is waiting for your approval.</p>';
+        : '<p class="empty">No completed work is waiting for your approval.</p>';
 
       const proposalBody = pendingProposals.length
         ? '<ul class="rows">' + pendingProposals.map((p) => '<li><div class="row-line"><span class="row-title">Week of ' + esc(D.fmtWeek(p.weekStart)) + '</span><span class="chip pending s-awaiting_approval">' + ui.icon('hourglass') + 'Waiting for Maha</span></div>' +
@@ -209,7 +237,10 @@
           '<div class="row-meta"><span>Reason: ' + esc(p.reason) + '</span></div></li>').join('') + '</ul>'
         : '<p class="empty">No proposed changes are waiting.</p>';
 
+      const pendingRA = pendingRequestApproval(s);
       carla = '<div class="grid grid-2" style="margin-bottom:20px">' +
+        card('Requests awaiting your approval', '<p class="small muted">Approve before Maha schedules. Approval does not confirm the requested deadline; Maha confirms effort and dates. ' +
+          'You can also reply to the <a href="#/email">approval email</a> (simulated).</p>' + requestApprovalList(pendingRA, true), { tone: pendingRA.length ? 'attention' : 'good', count: pendingRA.length }) +
         card('Priority conflicts', conflictBody, { tone: conflicts.length ? 'alert' : 'good', count: conflicts.length }) +
         card('Completed work awaiting your approval', approvalBody, { tone: awaiting.length ? 'attention' : '', count: awaiting.length }) +
         card('Proposed changes awaiting Maha’s confirmation', proposalBody, { count: pendingProposals.length, link: '<a href="#/decisions">All decisions</a>' }) +
@@ -222,7 +253,8 @@
       card(isCarla ? 'Your own requests' : 'Your requests', ui.taskTable(mineOpen, { hideRequester: true, empty: 'You have no open requests. Use “Request a task” to send one.', caption: 'Your open requests' }) +
         (mineClosed.length ? '<p class="small" style="margin-top:10px">' + mineClosed.length + ' completed, cancelled or archived. <a href="#/workload" data-action="filter-mine">See all of yours</a></p>' : ''), { count: mineOpen.length }) +
       '</div><div class="stack">' +
-      card('Needs your input', inputBody, { tone: needInfo.length || counterMeetings.length ? 'attention' : '' }) +
+      card('Needs your input', inputBody, { tone: needInfo.length || counterMeetings.length || declined.length ? 'attention' : '' }) +
+      noticesCard(app) +
       '</div></div>' +
       '<div class="grid grid-2">' + card('Upcoming deadlines', upcomingBody) + workloadSummary(app) + '</div>';
   }
@@ -242,13 +274,19 @@
     app.mutate(() => W.approve(app.state, app.user, el.getAttribute('data-id'), ''), 'Approved and marked Complete.');
   };
 
+  WH.actions['quick-request-decision'] = (app, el) => {
+    const decision = el.getAttribute('data-decision');
+    app.mutate(() => W.decideRequest(app.state, app.user, el.getAttribute('data-id'), decision, ''),
+      decision === 'approve' ? 'Request approved. Maha and the requester are notified (simulated).' : 'Request declined. Maha and the requester are notified (simulated).');
+  };
+
   WH.actions['open-decision'] = (app, el) => {
     app.ui.decisionWeek = el.getAttribute('data-week');
     app.go('#/decisions');
   };
 
   WH.actions['filter-mine'] = (app) => {
-    app.ui.filters = { requester: app.user, status: 'all', priority: '', project: '', from: '', to: '' };
+    app.ui.filters = { requester: app.user, status: 'all', priority: '', project: '', requestApproval: '', from: '', to: '' };
     app.go('#/workload');
   };
 

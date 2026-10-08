@@ -10,6 +10,7 @@
   const C = WH.capacity;
   const { uid, round1, fmtHours, PermissionError, ValidationError } = WH.util;
   const P = WH.permissions;
+  const A = WH.approval;
 
   const STATUSES = {
     submitted: 'Submitted',
@@ -85,6 +86,14 @@
     if (!allowed.includes(task.status)) {
       throw new ValidationError({ status: 'Cannot ' + what + ' while the task is "' + STATUSES[task.status] + '".' });
     }
+  }
+
+  function requireRequestApproval(task) {
+    if (A.canSchedule(task)) return;
+    const st = task.requestApproval.status;
+    throw new ValidationError({ requestApproval: st === 'declined'
+      ? 'Carla declined this request, so it cannot be scheduled.'
+      : 'Waiting for Carla to approve this request before it can be committed to the schedule.' });
   }
 
   function setStatus(task, actor, next, detail) {
@@ -184,13 +193,183 @@
       comments: [],
       history: [],
       approval: null,
+      briefVersion: 1,
+      requestApproval: { status: 'not_required', version: 1 },
       createdAt: now().toISOString(),
       sample: false
     }, brief);
     record(task, actor, 'Request submitted', brief.title);
     state.tasks.push(task);
+    if (A.requiresApproval(actor)) {
+      openApprovalRound(state, actor, task, 'New request');
+    } else {
+      record(task, actor, 'Request approval: Not required', A.ruleText(actor).replace(/^Not required: /, ''));
+    }
     return task;
   }
+
+  // ---------- request approval (separate from completed-work approval) ----------
+
+  function ensureApprovalState(state) {
+    state.emails = state.emails || [];
+    state.notifications = state.notifications || [];
+    state.inbound = state.inbound || [];
+  }
+
+  function makeToken() {
+    // Prototype only. Production must use a cryptographically random value, stored hashed.
+    const rnd = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+    return 'WH-' + rnd() + '-' + rnd();
+  }
+
+  /** Marks a task's outstanding approval emails as no longer usable. */
+  function closeOpenEmails(state, taskId, status) {
+    ensureApprovalState(state);
+    state.emails.forEach((e) => {
+      if (e.taskId === taskId && e.kind === 'request_approval' && e.status === 'awaiting_reply') e.status = status;
+    });
+  }
+
+  /** Creates a SIMULATED approval email record. Nothing is sent. */
+  function createApprovalEmail(state, task, actor, at) {
+    ensureApprovalState(state);
+    const sentAt = at || now().toISOString();
+    const expires = new Date(new Date(sentAt).getTime() + WH.config.requestApproval.replyExpiryDays * 86400000);
+    const token = makeToken();
+    const content = A.buildEmail(state, task, { version: task.requestApproval.version, token, expiresOn: D.todayISO(expires), currentWeek: currentWeek() });
+    const email = {
+      id: uid('eml'), kind: 'request_approval', simulated: true, taskId: task.id, toUserId: WH.config.requestApproval.approverId,
+      toAddress: WH.config.email.approverAddress, approvalVersion: task.requestApproval.version, token,
+      subject: content.subject, body: content.body, sentAt, expiresAt: expires.toISOString(), status: 'awaiting_reply', sample: !!task.sample
+    };
+    state.emails.push(email);
+    task.history.push({ at: sentAt, by: actor, action: 'Approval email to Carla (simulated, not sent)', detail: 'Version ' + email.approvalVersion + ' · reference ' + token });
+    return email;
+  }
+
+  /** Starts (or restarts) request approval for the task's current version. */
+  function openApprovalRound(state, actor, task, reason) {
+    const prev = task.requestApproval ? task.requestApproval.status : null;
+    closeOpenEmails(state, task.id, 'superseded');
+    task.requestApproval = { status: 'pending', version: task.briefVersion, requestedAt: now().toISOString(), decidedBy: null, decidedAt: null, channel: null, note: '' };
+    record(task, actor, 'Request approval: Pending', reason + ' · version ' + task.briefVersion +
+      (prev === 'approved' ? ' · the earlier approval no longer applies' : prev === 'declined' ? ' · resubmitted after decline' : ''));
+    return createApprovalEmail(state, task, actor);
+  }
+
+  /** Records a SIMULATED notice to a person (nothing is sent). */
+  function notify(state, toUserId, subject, text, taskId) {
+    ensureApprovalState(state);
+    state.notifications.push({ id: uid('ntc'), toUserId, subject, text, taskId: taskId || null, at: now().toISOString(), simulated: true });
+  }
+
+  const CHANNEL_LABELS = { in_app: 'In the app', email_simulated: 'Email reply (simulated)' };
+
+  function applyRequestDecision(state, actor, task, decision, channel, note) {
+    const ra = task.requestApproval;
+    ra.status = decision === 'approve' ? 'approved' : 'declined';
+    ra.decidedBy = actor;
+    ra.decidedAt = now().toISOString();
+    ra.channel = channel;
+    ra.note = str(note, 1000);
+    const label = decision === 'approve' ? 'Request approved' : 'Request declined';
+    record(task, actor, label, 'Version ' + ra.version + ' · ' + CHANNEL_LABELS[channel] + ' · ' + D.fmtStamp(ra.decidedAt) + (ra.note ? ' · ' + ra.note : ''));
+    closeOpenEmails(state, task.id, channel === 'in_app' ? 'decided_in_app' : 'decided');
+    const next = decision === 'approve'
+      ? 'Maha will now confirm effort, capacity and the agreed date. The requested deadline is not confirmed yet.'
+      : 'Maha will not schedule it. ' + WH.people.first(task.requesterId) + ' can revise the brief to ask again, or cancel it.';
+    const text = 'Carla ' + (decision === 'approve' ? 'approved' : 'declined') + ' "' + task.title + '" (version ' + ra.version + ', ' + CHANNEL_LABELS[channel].toLowerCase() + ').' +
+      (ra.note ? ' Note: ' + ra.note + '.' : '') + ' ' + next;
+    notify(state, 'maha', label + ': ' + task.title, text, task.id);
+    if (task.requesterId !== 'maha') notify(state, task.requesterId, label + ': ' + task.title, text, task.id);
+    logGlobal(state, actor, label, task.title + ' · version ' + ra.version + ' · ' + CHANNEL_LABELS[channel], task.id);
+  }
+
+  /** Carla approves or declines a request in the app. */
+  function decideRequest(state, actor, taskId, decision, note) {
+    const task = findTask(state, taskId);
+    P.assert(actor, 'request.decide', task);
+    if (!task.requestApproval || task.requestApproval.status !== 'pending') {
+      throw new ValidationError({ requestApproval: 'This request is not waiting for approval.' });
+    }
+    if (decision !== 'approve' && decision !== 'decline') throw new ValidationError({ requestApproval: 'Choose approve or decline.' });
+    applyRequestDecision(state, actor, task, decision, 'in_app', note);
+    return task;
+  }
+
+  function resendApprovalEmail(state, actor, taskId) {
+    const task = findTask(state, taskId);
+    P.assert(actor, 'request.resendEmail', task);
+    if (!task.requestApproval || task.requestApproval.status !== 'pending') {
+      throw new ValidationError({ requestApproval: 'Only pending requests can be resent.' });
+    }
+    return createApprovalEmail(state, task, actor);
+  }
+
+  function emailStatus(email) {
+    if (email.status === 'awaiting_reply' && now().toISOString() > email.expiresAt) return 'expired';
+    return email.status;
+  }
+
+  /**
+   * Handles a reply to an approval email. In production this runs on the server after the
+   * email provider's webhook signature is verified. In the prototype it is SIMULATED.
+   *
+   * reply: { token, authenticatedSender, displayName, body }
+   * Returns { outcome, message }. Outcomes: applied, ambiguous, duplicate, already_decided,
+   * expired, superseded, rejected_sender, unknown_reference.
+   */
+  function processEmailReply(state, reply) {
+    ensureApprovalState(state);
+    const entry = {
+      id: uid('in'), at: now().toISOString(), token: str(reply.token, 60), displayName: str(reply.displayName, 120),
+      authenticatedSender: str(reply.authenticatedSender, 200), body: str(reply.body, 5000), simulated: true
+    };
+    const finish = (outcome, message, extra) => {
+      Object.assign(entry, { outcome, message }, extra || {});
+      state.inbound.push(entry);
+      return { outcome, message, entry };
+    };
+    const email = state.emails.find((e) => e.token === entry.token && e.kind === 'request_approval');
+    if (!email) return finish('unknown_reference', 'No approval email matches this reply reference. Nothing changed.');
+    entry.emailId = email.id;
+    entry.taskId = email.taskId;
+    entry.approvalVersion = email.approvalVersion;
+
+    // Sender check uses the authenticated sender, never the display name.
+    const expected = WH.config.email.approverAddress || SIMULATED_APPROVER;
+    if (entry.authenticatedSender !== expected) {
+      return finish('rejected_sender', 'The sender is not Carla’s configured address (display name "' + entry.displayName + '" is not trusted). Nothing changed.');
+    }
+    const task = state.tasks.find((t) => t.id === email.taskId);
+    if (!task) return finish('unknown_reference', 'The request no longer exists. Nothing changed.');
+
+    const status = emailStatus(email);
+    // Outdated (superseded) replies are rejected first, whatever happened to the older version.
+    if (status === 'superseded' || email.approvalVersion !== task.requestApproval.version) {
+      return finish('superseded', 'This email was for version ' + email.approvalVersion + ', but the request has since changed (now version ' + task.briefVersion + '). Reply rejected; Carla must use the newest email.');
+    }
+    if (status === 'decided' && email.replyId) return finish('duplicate', 'A decision from this email was already recorded. Duplicate ignored.');
+    if (status === 'decided') return finish('already_decided', 'This version was already decided from another approval email. Reply ignored.');
+    if (status === 'decided_in_app') return finish('already_decided', 'Carla already decided this in the app. Reply ignored.');
+    if (status === 'expired') return finish('expired', 'This approval email expired (' + D.fmtStamp(email.expiresAt) + '). Reply rejected; Maha can resend it.');
+    if (task.requestApproval.status !== 'pending') {
+      return finish('already_decided', 'This version was already ' + task.requestApproval.status + '. Reply ignored.');
+    }
+
+    const parsed = A.parseDecision(entry.body);
+    if (!parsed.decision) {
+      record(task, WH.config.requestApproval.approverId, 'Email reply not understood (simulated)', parsed.reason + ' Still pending.');
+      return finish('ambiguous', parsed.reason + ' The request stays pending.');
+    }
+    applyRequestDecision(state, WH.config.requestApproval.approverId, task, parsed.decision, 'email_simulated', parsed.note);
+    email.status = 'decided';
+    email.replyId = entry.id;
+    return finish('applied', 'Recorded: request ' + (parsed.decision === 'approve' ? 'approved' : 'declined') + ' (version ' + email.approvalVersion + ').', { decision: parsed.decision });
+  }
+
+  // Stand-in for "Carla's configured address" in the prototype, which has no real address.
+  const SIMULATED_APPROVER = 'simulated:carla-configured-address';
 
   const BRIEF_LABELS = {
     title: 'Title', description: 'Description', project: 'Project or campaign', deliverableType: 'Deliverable type',
@@ -203,6 +382,7 @@
     const task = findTask(state, taskId);
     P.assert(actor, 'task.editBrief', task);
     const brief = readBrief(data, { previousDeadline: task.requestedDeadline });
+    const before = Object.assign({}, task);
     const changed = [];
     Object.keys(brief).forEach((k) => {
       if ((task[k] || '') !== (brief[k] || '')) {
@@ -216,6 +396,15 @@
       }
     });
     if (changed.length) record(task, actor, 'Brief edited', changed.join('; '));
+    const material = A.MATERIAL_FIELDS.filter((k) => (before[k] || '') !== (task[k] || ''));
+    if (material.length) {
+      task.briefVersion = (task.briefVersion || 1) + 1;
+      if (A.requiresApproval(task.requesterId) && !['complete', 'cancelled', 'archived'].includes(task.status)) {
+        openApprovalRound(state, actor, task, 'Material change (' + material.map((k) => BRIEF_LABELS[k]).join(', ') + ')');
+      } else {
+        task.requestApproval = Object.assign({}, task.requestApproval, { version: task.briefVersion });
+      }
+    }
     return task;
   }
 
@@ -318,6 +507,7 @@
     const task = findTask(state, taskId);
     P.assert(actor, 'task.schedule', task);
     requireStatus(task, ['submitted', 'clarification', 'scheduled', 'in_progress'], 'schedule');
+    requireRequestApproval(task);
     if (!(task.estimateHours > 0)) throw new ValidationError({ estimate: 'Estimate needed before scheduling.' });
 
     const errors = {};
@@ -387,6 +577,7 @@
     const task = findTask(state, taskId);
     P.assert(actor, 'task.start', task);
     requireStatus(task, ['scheduled'], 'start work');
+    requireRequestApproval(task);
     setStatus(task, actor, 'in_progress');
     return task;
   }
@@ -758,6 +949,8 @@
     createProposal, confirmProposal, declineProposal,
     requestMeeting, respondMeeting, acceptCounter, withdrawMeeting, meetingConflicts,
     setCapacity, clearCapacity, addEvent, removeEvent,
+    decideRequest, resendApprovalEmail, processEmailReply, emailStatus, createApprovalEmail, ensureApprovalState,
+    SIMULATED_APPROVER, CHANNEL_LABELS,
     PermissionError, ValidationError
   };
 })(globalThis.WH = globalThis.WH || {});

@@ -15,7 +15,8 @@
   no Outlook connection. Do not claim otherwise. See README.md and docs/before-real-use.md.
 - Capacity: 37.7 h/week authoritative, 6 h social media reserve, allocations per week, remaining effort used,
   "Estimate needed" never counted as zero, pending requests shown separately.
-- Workflow: Submitted → Needs clarification → Scheduled → In progress → Complete (+ blocked flag, cancelled, archived).
-  No approval steps and no email: all requests go to Maha, who marks work Complete. Carla sets priorities and proposes
-  schedule changes; Maha confirms dates. Saved data from older versions is upgraded by js/core/migrate.js (schemaVersion 3);
+- Workflow: Submitted → Needs clarification → Scheduled → In progress → Awaiting approval → Complete (+ blocked flag, cancelled, archived).
+  No request approval and no email: all requests go to Maha. Finished work on managers' requests (task.approvalRequired) waits
+  for Carla: Maha finishes it, requests approval, Carla approves (closed) or requests changes. Carla sets priorities and proposes
+  schedule changes; Maha confirms dates. Saved data from older versions is upgraded by js/core/migrate.js (schemaVersion 4);
   bump the version and add a migration step when the saved data shape changes.

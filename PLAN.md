@@ -37,8 +37,8 @@ Code layout:
 
 ## Key rules encoded
 
-- Statuses: Submitted → Needs clarification → Scheduled → In progress → Complete, plus Blocked (a flag with a reason), Cancelled and Archived (history kept).
-- All requests go directly to Maha; there is no approval step. Maha marks work Complete. (Simplified in a later update.)
+- Statuses: Submitted → Needs clarification → Scheduled → In progress → Awaiting approval → Complete, plus Blocked (a flag with a reason), Cancelled and Archived (history kept).
+- All requests go directly to Maha; requests are not approved in advance. Finished work on managers' requests waits for Carla's approval before it is closed (In progress → Completed by Maha → Submitted for approval → Awaiting Carla → Approved → Closed). Maha's own tasks close when she finishes them.
 - Managers' urgency is a *request*; only Carla sets priority.
 - Carla *proposes* schedule changes; Maha *confirms* dates. Nothing moves until Maha confirms.
 - Unscheduled requests are shown as "potential impact", never mixed into committed hours.

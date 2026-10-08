@@ -16,7 +16,7 @@ This prototype is for trying out the workflow with fictional data. It is **not**
    - When used, the person sets up their own sign-in. The code then stops working.
 4. **Individual sign-in after that.** Preferably through Women's Habitat's existing work accounts, if IT supports it (see section 3). Otherwise an email-and-password sign-in with multi-factor authentication.
 5. **Server-enforced roles.**
-   - Carla's abilities (set priorities, propose schedule changes) and Maha's (schedule, confirm dates, mark work complete) are granted to Carla's *account* on the server, never to whoever selects a name.
+   - Carla's abilities (set priorities, propose schedule changes, approve completed work) and Maha's (schedule, confirm dates, finish work and send it for approval) are granted to Carla's *account* on the server, never to whoever selects a name.
    - Managers can only edit their own briefs. Only Maha can schedule, estimate and confirm dates. The server rejects anything else, even if someone crafts a request by hand.
    - Role changes are themselves recorded in history.
 6. **Things to avoid:** no shared or permanent access code, no passwords or keys written into the app's code, no way to gain privileges by choosing a name.

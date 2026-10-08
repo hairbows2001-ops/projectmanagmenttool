@@ -16,11 +16,12 @@
     clarification: 'Needs clarification',
     scheduled: 'Scheduled',
     in_progress: 'In progress',
+    awaiting_approval: 'Awaiting approval',
     complete: 'Complete',
     cancelled: 'Cancelled',
     archived: 'Archived'
   };
-  const MAIN_FLOW = ['submitted', 'clarification', 'scheduled', 'in_progress', 'complete'];
+  const MAIN_FLOW = ['submitted', 'clarification', 'scheduled', 'in_progress', 'awaiting_approval', 'complete'];
 
   const PRIORITIES = { P1: 'Critical', P2: 'High', P3: 'Normal', P4: 'Low' };
   const URGENCY = { low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent' };
@@ -175,6 +176,8 @@
       agreedDeadline: null,
       allocations: [],
       coveredBySocial: false,
+      // Completed work on managers' requests needs Carla's approval before it is closed.
+      approvalRequired: actor !== 'maha',
       plannedDates: [],
       documents: [],
       links,
@@ -416,7 +419,11 @@
     return task;
   }
 
-  /** Maha marks finished work as Complete. No separate approval step. */
+  /**
+   * Maha finishes the work.
+   * If Carla's approval is required, the task moves to "Awaiting approval" (not closed);
+   * Maha then requests approval. Otherwise it is closed as Complete.
+   */
   function completeTask(state, actor, taskId, note) {
     const task = findTask(state, taskId);
     P.assert(actor, 'task.complete', task);
@@ -426,7 +433,59 @@
     task.completedBy = actor;
     task.completedAt = now().toISOString();
     task.completionNote = str(note, 2000);
-    setStatus(task, actor, 'complete', task.completionNote ? 'Note: ' + task.completionNote.slice(0, 200) : '');
+    const noteText = task.completionNote ? 'Note: ' + task.completionNote.slice(0, 200) : '';
+    if (task.approvalRequired) {
+      task.approval = { completedAt: task.completedAt, completedBy: actor, note: task.completionNote, requestedAt: null, requestedBy: null, decision: null, decidedBy: null, decidedAt: null, decisionNote: '' };
+      setStatus(task, actor, 'awaiting_approval', 'Completed by Maha; needs Carla’s approval before it is closed' + (noteText ? ' · ' + noteText : ''));
+    } else {
+      setStatus(task, actor, 'complete', noteText);
+    }
+    return task;
+  }
+
+  /** Maha sends finished work to Carla for approval. */
+  function requestApproval(state, actor, taskId) {
+    const task = findTask(state, taskId);
+    P.assert(actor, 'task.requestApproval', task);
+    requireStatus(task, ['awaiting_approval'], 'request approval');
+    task.approval = task.approval || { completedAt: task.completedAt || now().toISOString(), completedBy: task.completedBy || actor, note: '', decision: null };
+    if (task.approval.requestedAt) throw new ValidationError({ approval: 'Already sent to Carla on ' + D.fmtStamp(task.approval.requestedAt) + '.' });
+    task.approval.requestedAt = now().toISOString();
+    task.approval.requestedBy = actor;
+    record(task, actor, 'Submitted for approval', 'Sent to Carla');
+    return task;
+  }
+
+  /** Carla approves finished work: it is closed (Complete). */
+  function approveWork(state, actor, taskId, note) {
+    const task = findTask(state, taskId);
+    P.assert(actor, 'task.approve', task);
+    requireStatus(task, ['awaiting_approval'], 'approve');
+    if (!task.approval || !task.approval.requestedAt) throw new ValidationError({ approval: 'Maha has not sent this for approval yet.' });
+    Object.assign(task.approval, { decision: 'approved', decidedBy: actor, decidedAt: now().toISOString(), decisionNote: str(note, 2000) });
+    setStatus(task, actor, 'complete', 'Approved by Carla · Closed' + (task.approval.decisionNote ? ' · ' + task.approval.decisionNote : ''));
+    return task;
+  }
+
+  /** Carla asks for changes: the work goes back to In progress. */
+  function requestChanges(state, actor, taskId, note) {
+    const task = findTask(state, taskId);
+    P.assert(actor, 'task.approve', task);
+    requireStatus(task, ['awaiting_approval'], 'request changes');
+    const n = str(note, 2000);
+    if (!n) throw new ValidationError({ note: 'Say what needs to change.' });
+    Object.assign(task.approval, { decision: 'changes', decidedBy: actor, decidedAt: now().toISOString(), decisionNote: n });
+    task.comments.push({ id: uid('cmt'), by: actor, at: now().toISOString(), text: n, kind: 'revision' });
+    setStatus(task, actor, 'in_progress', 'Changes requested by Carla: ' + n);
+    return task;
+  }
+
+  function setApprovalRequired(state, actor, taskId, on) {
+    const task = findTask(state, taskId);
+    P.assert(actor, 'task.setApprovalRequired', task);
+    if (!!task.approvalRequired === !!on) return task;
+    task.approvalRequired = !!on;
+    record(task, actor, on ? 'Carla’s approval required' : 'Carla’s approval not required', on ? 'Completed work will wait for Carla’s approval' : 'Maha can close this task when it is done');
     return task;
   }
 
@@ -730,7 +789,7 @@
     setClock, now, today, currentWeek,
     createTask, updateBrief, addComment, addLink, addDocument,
     requestClarification, provideInfo, setEstimate, setRemaining, scheduleTask, setCoveredBySocial, startWork,
-    setBlocked, clearBlocked, planToday, completeTask,
+    setBlocked, clearBlocked, planToday, completeTask, requestApproval, approveWork, requestChanges, setApprovalRequired,
     setPriority, cancelTask, archiveTask,
     createProposal, confirmProposal, declineProposal,
     requestMeeting, respondMeeting, acceptCounter, withdrawMeeting, meetingConflicts,

@@ -432,7 +432,7 @@
     app.user = WH.store.getProfile();
     if (app.user && !WH.people.get(app.user)) app.user = null;
     if (WH.store.wasMigrated()) {
-      setTimeout(() => toast('Workflow simplified: approvals were removed. Your saved tasks and history were kept; tasks that were awaiting approval are back In progress.', 'warn'), 300);
+      setTimeout(() => toast('Updated: Carla’s approval of completed work is back. Your saved tasks and history were kept.', 'warn'), 300);
     } else if (WH.store.wasUpgraded()) {
       setTimeout(() => toast('The prototype was updated. Sample data was refreshed.', 'warn'), 300);
     }

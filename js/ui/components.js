@@ -40,7 +40,7 @@
 
   const STATUS_ICONS = {
     submitted: 'inbox', clarification: 'question', scheduled: 'calendar', in_progress: 'play',
-    complete: 'check', cancelled: 'x', archived: 'archive'
+    awaiting_approval: 'hourglass', complete: 'check', cancelled: 'x', archived: 'archive'
   };
 
   function statusChip(status) {

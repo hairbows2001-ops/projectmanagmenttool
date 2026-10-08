@@ -13,7 +13,7 @@
   const ui = WH.ui;
   const people = WH.people;
 
-  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress'];
+  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress', 'awaiting_approval'];
   const PRIO = { P1: 0, P2: 1, P3: 2, P4: 3 };
 
   function applyFilters(tasks, f) {
@@ -114,7 +114,7 @@
   }
 
   function board(tasks, f) {
-    const cols = ['submitted', 'clarification', 'scheduled', 'in_progress', 'complete'];
+    const cols = ['submitted', 'clarification', 'scheduled', 'in_progress', 'awaiting_approval', 'complete'];
     if (f.status === 'all' || f.status === 'cancelled') cols.push('cancelled');
     if (f.status === 'archived') cols.splice(0, cols.length, 'archived');
     return '<div class="board" aria-label="Tasks by status">' + cols.map((c) => {

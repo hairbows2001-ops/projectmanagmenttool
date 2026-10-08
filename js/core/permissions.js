@@ -50,6 +50,7 @@
       case 'task.start':
       case 'task.block':
       case 'task.complete':
+      case 'task.requestApproval':
       case 'task.setRemaining':
       case 'task.planToday':
       case 'proposal.confirm':
@@ -62,7 +63,11 @@
       // Carla's decisions
       case 'task.setPriority':
       case 'proposal.create':
+      case 'task.approve':
         return isExec(userId);
+
+      case 'task.setApprovalRequired':
+        return (isOwner(userId) || isExec(userId)) && !CLOSED.includes(item.status) && item.status !== 'awaiting_approval';
 
       case 'task.cancel':
         return !CLOSED.includes(item.status) &&

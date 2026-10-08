@@ -69,7 +69,7 @@
 
     if (!COMMITTED_STATUSES.includes(task.status)) {
       // Completed work keeps its past record; cancelled or pending work counts nowhere.
-      return { weeks: task.status === 'complete' || task.status === 'archived' ? past : [], unplaced: 0 };
+      return { weeks: ['complete', 'archived', 'awaiting_approval'].includes(task.status) ? past : [], unplaced: 0 };
     }
 
     const future = allocs.filter((a) => a.weekStart >= currentWeek);

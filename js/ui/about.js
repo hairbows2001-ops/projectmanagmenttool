@@ -23,8 +23,9 @@
       '<li>Task effort is allocated to specific weeks. Remaining effort is used for unfinished work.</li>' +
       '<li>Requests not yet scheduled are shown as potential impact, separate from committed hours.</li>' +
       '<li>Requests without an estimate show “Estimate needed” and are never counted as zero.</li>' +
-      '<li>All requests go directly to Maha for review, clarification, estimates and scheduling. There is no approval step.</li>' +
-      '<li>Statuses: Submitted → Needs clarification → Scheduled → In progress → Complete, plus Blocked, Cancelled and Archived. Maha marks work Complete.</li>' +
+      '<li>All requests go directly to Maha for review, clarification, estimates and scheduling. Requests are not approved in advance.</li>' +
+      '<li>Statuses: Submitted → Needs clarification → Scheduled → In progress → Awaiting approval → Complete, plus Blocked, Cancelled and Archived.</li>' +
+      '<li>Finished work on managers’ requests needs Carla’s approval: Maha finishes it and sends it to Carla, Carla approves it (it is then closed) or returns it with changes. Maha’s own tasks are closed when she finishes them. Maha or Carla can switch this per task.</li>' +
       '<li>Managers request urgency; Carla, as lead manager, sets priorities and resolves competing requests.</li>' +
       '<li>Carla proposes schedule changes; Maha confirms the dates. Nothing moves until confirmed.</li></ul></section>' +
       '</div>';

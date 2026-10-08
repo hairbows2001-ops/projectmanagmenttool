@@ -140,13 +140,15 @@
         id: 'sample-recognition', requesterId: 'leslie', title: 'Staff recognition week poster',
         description: 'Fictional sample. Poster and email banner celebrating staff recognition week.',
         project: 'Staff Engagement (sample)', deliverableType: 'Graphic or infographic', requestedDeadline: day(7),
-        status: 'in_progress', priority: 'P4', estimateHours: 3, remainingHours: 0, agreedDeadline: day(7),
+        status: 'awaiting_approval', priority: 'P4', estimateHours: 3, remainingHours: 0, agreedDeadline: day(7),
+        completedBy: 'maha', completedAt: stamp(day(1), '15:30'),
+        approval: { completedAt: stamp(day(1), '15:30'), completedBy: 'maha', note: 'Final poster ready in shared drive (sample).', requestedAt: null, requestedBy: null, decision: null, decidedBy: null, decidedAt: null, decisionNote: '' },
         allocations: [{ weekStart: wk(-1), hours: 3 }],
         history: [
           h(-9, '11:00', 'leslie', 'Request submitted', 'Staff recognition week poster'),
           h(-8, '09:00', 'maha', 'Status changed', 'Submitted → Scheduled'),
           h(-7, '10:00', 'maha', 'Status changed', 'Scheduled → In progress'),
-          h(1, '15:30', 'maha', 'Remaining effort updated', '1 h → 0 h · Final poster ready in shared drive (sample)')
+          h(1, '15:30', 'maha', 'Status changed', 'In progress → Awaiting approval · Completed by Maha; needs Carla’s approval before it is closed')
         ]
       }),
       task({
@@ -214,11 +216,14 @@
         project: 'Resident Communications (sample)', deliverableType: 'Print piece (flyer, poster, brochure)',
         requestedDeadline: day(-9), status: 'complete', priority: 'P3', estimateHours: 4, remainingHours: 0, agreedDeadline: day(-9),
         allocations: [{ weekStart: wk(-2), hours: 4 }],
-        completedBy: 'maha', completedAt: stamp(day(-9), '09:30'), completionNote: 'Printed and posted in all houses (sample).',
+        completedBy: 'maha', completedAt: stamp(day(-10), '15:00'), completionNote: 'Printed and posted in all houses (sample).',
+        approval: { completedAt: stamp(day(-10), '15:00'), completedBy: 'maha', note: '', requestedAt: stamp(day(-10), '15:05'), requestedBy: 'maha', decision: 'approved', decidedBy: 'carla', decidedAt: stamp(day(-9), '09:30'), decisionNote: 'Clear and welcoming.' },
         history: [
           h(-16, '10:00', 'alicia', 'Request submitted', 'House rules poster refresh'),
           h(-12, '10:00', 'maha', 'Status changed', 'Scheduled → In progress'),
-          h(-9, '09:30', 'maha', 'Status changed', 'In progress → Complete · Note: Printed and posted in all houses (sample).')
+          h(-10, '15:00', 'maha', 'Status changed', 'In progress → Awaiting approval · Completed by Maha'),
+          h(-10, '15:05', 'maha', 'Submitted for approval', 'Sent to Carla'),
+          h(-9, '09:30', 'carla', 'Status changed', 'Awaiting approval → Complete · Approved by Carla · Closed · Clear and welcoming.')
         ]
       }),
       task({
@@ -281,7 +286,8 @@
       { at: stamp(day(1), '10:30'), by: 'carla', action: 'Proposed schedule change', detail: 'Week of ' + D.fmtWeek(wk(1)), ref: 'sample-p1' }
     ];
 
-    return { schemaVersion: 3, seededAt: now.toISOString(), seededWeek: w0, tasks, meetings, events, capacity, proposals, log };
+    tasks.forEach((t) => { t.approvalRequired = t.requesterId !== 'maha'; });
+    return { schemaVersion: 4, seededAt: now.toISOString(), seededWeek: w0, tasks, meetings, events, capacity, proposals, log };
   }
 
   WH.seed = { build, stamp };

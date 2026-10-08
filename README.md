@@ -37,28 +37,30 @@ The server only accepts connections from your own computer, so nobody else on th
 
 The app has three sections: **Home**, **Tasks** and **Calendar**. Your name at the top right opens the profile menu (switch profile, about this prototype, reset sample data). Task details, forms and priorities open in a panel on the right (full screen on a phone); press **Esc** or **×** to close it.
 
-1. **Maha**: Home shows *Today*, this week's capacity (**40 h planned / 37.7 h available, 2.3 h over capacity**) and *Needs attention*. Tick a task in Today to mark it complete, or use the ••• menu to remove it from Today.
-2. **Maha**: *View this week* (or Tasks → This week) lists everything scheduled this week. Use the ••• menu to add a task to Today.
-3. **Carla**: Tasks shows a slim line about over-capacity weeks. Choose **Review priorities**, tick the work to move (for example, Christine's brochure), pick a week, give a reason and **Propose changes to Maha**. Nothing moves yet.
-4. **Maha**: open the same Priorities panel and **Confirm these dates**. The schedule and deadlines update, with history.
-5. **Lina** or **Christine**: **Request a task**. Only a title is needed; add a brief, optional details and attachments now or later.
-6. **Maha**: open the request. The panel's top section shows the next step: estimate, then schedule, then **Start work**, then **Mark complete**. There is no approval step.
-7. **Calendar**: month and week views, *Meetings* (answer or propose another time) and *Events & leave* (add events, reduce a week's capacity for leave).
+1. **Maha**: Home shows *Today*, this week's capacity (**40 h planned / 37.7 h available, 2.3 h over capacity**) and *Needs attention*. Tick a task in Today to mark it finished, or use the ••• menu to remove it from Today. The line under the greeting (*3 new requests · 2 decisions needed · 1 awaiting approval · 2 weeks over capacity*) links to each section.
+2. **Maha**: below *Needs attention*, **Conflicts & decisions** lists what is waiting on a decision (over-capacity weeks, Carla's proposed change, meeting requests, missing estimates). Beside it, **Completed work awaiting Carla's approval** shows the *Staff recognition week poster*: choose **Request approval** to send it to Carla.
+3. **Carla**: Home shows the poster under *Completed work awaiting your approval*. Choose **Approve**: it shows *✓ Approved* for the rest of the day and is closed. (Or open it and **Request changes** to return it to Maha.)
+4. **Maha**: *View this week* (or Tasks → This week) lists everything scheduled this week. Use the ••• menu to add a task to Today.
+5. **Carla**: Tasks shows a slim line about over-capacity weeks. Choose **Review priorities**, tick the work to move (for example, Christine's brochure), pick a week, give a reason and **Propose changes to Maha**. Nothing moves yet.
+6. **Maha**: open the same Priorities panel and **Confirm these dates**. The schedule and deadlines update, with history.
+7. **Lina** or **Christine**: **Request a task**. Only a title is needed; add a brief, optional details and attachments now or later.
+8. **Maha**: open the request. The panel's top section shows the next step: estimate, then schedule, then **Start work**, then **Mark complete**, then **Request approval** (managers' requests only).
+9. **Calendar**: month and week views, *Meetings* (answer or propose another time) and *Events & leave* (add events, reduce a week's capacity for leave).
 
 ## 3. What works
 
 | Area | What you can do |
 | --- | --- |
 | Navigation | Three sections (Home, Tasks, Calendar); profile menu with switch profile, about and reset; a small "Demo workspace" label. Old links still work. |
-| Home (Maha) | Compact greeting; Today list with completion checkboxes and an accessible ••• menu; one-bar weekly capacity with "View breakdown"; Needs attention (new requests, clarification, estimates, meeting requests, schedule changes, conflicts, blocked work). One primary button: **Create task**. |
-| Home (managers) | Greeting; **Request a task** (primary) and **Request a meeting**; active requests with one status each; Maha's capacity summary; anything needing your input. Carla also sees conflicts, requests without a priority, and changes waiting for Maha. |
+| Home (Maha) | Compact greeting; Today list with completion checkboxes and an accessible ••• menu; one-bar weekly capacity with "View breakdown"; Needs attention (a short summary whose rows jump to the sections below); **Conflicts & decisions** (over-capacity weeks and who must decide, Carla's proposed changes, meeting requests, missing estimates, blocked work); **Completed work awaiting Carla's approval**. One primary button: **Create task**. |
+| Home (managers) | Greeting; **Request a task** (primary) and **Request a meeting**; active requests with one status each; Maha's capacity summary; anything needing your input. Carla also sees conflicts to decide, requests without a priority, changes waiting for Maha, and finished work to approve. |
 | Tasks | This week, All tasks (list) and Board. Status and requester filters, with priority, project and dates under *More filters*. Rows show title, requester, due date, one status and priority only when it is Critical or High. |
 | Task details | Side panel (full screen on phones): next step first, then collapsible Brief, Schedule and effort, Documents and links, Comments, More actions, and Activity history. Sections stay open while you work in them. |
 | Requests | Essentials (title, short brief, requested deadline or "Not known yet"), optional details, and attachments. Only the title is required; edit the brief and add documents, links and comments later. |
 | Priorities | A panel within Tasks: changes waiting for Maha, the week's competing work, Carla's proposal form (move fields appear when a task is ticked) and earlier decisions. Carla proposes; Maha confirms the dates. |
 | Calendar | Month and week views with tasks, deadlines (requested vs agreed), meetings (pending vs confirmed) and events. *Meetings* and *Events & leave* tabs. |
 | Capacity | 37.7 h week, 6 h social media reserve, meetings, events and scheduled tasks; remaining or over. Unscheduled requests are shown separately. Maha can reduce a week's capacity for leave and add events. |
-| Workflow | Submitted → Needs clarification → Scheduled → In progress → Complete, plus Blocked, Cancelled and Archived. All requests go directly to Maha; Maha marks work Complete. |
+| Workflow | Submitted → Needs clarification → Scheduled → In progress → Awaiting approval → Complete, plus Blocked, Cancelled and Archived. All requests go directly to Maha. Finished work on managers' requests waits for Carla's approval (Maha finishes it → sends it → Carla approves → closed, or Carla returns it with changes). Maha's own tasks close when she finishes them; either can switch this per task. |
 | History & saving | Every important action records who, what and when. Changes survive a refresh. |
 
 ### Capacity rules, in plain language
@@ -72,7 +74,7 @@ The app has three sections: **Home**, **Tasks** and **Calendar**. Your name at t
 
 ### If you used an earlier version
 
-The first time you open this version, data saved in your browser is updated automatically and a message says so. Nothing is deleted: tasks that were *Awaiting approval* move back to *In progress* with a history note, and requests that were waiting for (or declined) approval get a note and can be scheduled normally.
+The first time you open this version, data saved in your browser is updated automatically and a message says so. Nothing is deleted. Requests that were waiting for (or declined) request approval get a note and can be scheduled normally. Finished work that an earlier update moved back to *In progress* returns to *Awaiting approval*, keeping its original "sent to Carla" time, with a history note.
 
 ## 4. What is simulated or incomplete
 
@@ -80,7 +82,7 @@ The first time you open this version, data saved in your browser is updated auto
 - **Data is local to one browser on one computer.** It is not shared with anyone. Clearing browser data erases it.
 - **Documents are stored in the browser only** (up to 10 MB each). They can be reopened on the same computer and browser, but nobody else can open them. Sample documents are names only, with no file.
 - **No Outlook connection.** The calendar is internal. Nothing is sent to or read from the Women's Habitat mail server.
-- **No email.** The app does not send or receive email. An earlier version simulated approval emails to Carla; approvals and that page were removed to keep the workflow simple (the code is kept in the project's history).
+- **No email.** The app does not send or receive email. Carla approves completed work inside the app. An earlier version simulated approval emails to Carla; that page was removed (the code is kept in the project's history).
 - **No notifications** (new request, clarification, meetings) are sent; people see updates when they open the app.
 - **Time of day for tasks** isn't scheduled; effort is planned by week. Meetings and events have times.
 - The heading font (Cormorant Garamond) loads from Google Fonts when online; offline it falls back to Palatino/Georgia. This is the only outside request the page makes.

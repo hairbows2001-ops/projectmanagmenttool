@@ -14,7 +14,8 @@
   const ui = WH.ui;
   const people = WH.people;
 
-  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress'];
+  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress', 'awaiting_approval'];
+  const WORKING = ['submitted', 'clarification', 'scheduled', 'in_progress'];
   const PRIO = { P1: 0, P2: 1, P3: 2, P4: 3 };
 
   function byPriorityThenDate(a, b) {
@@ -24,12 +25,12 @@
     return (a.agreedDeadline || a.requestedDeadline || '9999') < (b.agreedDeadline || b.requestedDeadline || '9999') ? -1 : 1;
   }
 
-  function greeting(app, actions) {
+  function greeting(app, actions, summaryLine) {
     const p = people.get(app.user);
     const hour = Number(new Intl.DateTimeFormat('en-CA', { timeZone: D.TZ, hour: '2-digit', hourCycle: 'h23' }).format(W.now()));
     const part = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     return '<div class="page-head compact"><div><p class="date-line">' + esc(D.fmtLong(W.today())) + '</p>' +
-      '<h1>' + part + ', <span class="highlight">' + esc(p.first) + '</span></h1></div>' +
+      '<h1>' + part + ', <span class="highlight">' + esc(p.first) + '</span></h1>' + (summaryLine || '') + '</div>' +
       '<div class="btn-row">' + actions + '</div></div>';
   }
 
@@ -44,6 +45,106 @@
     const list = items.filter(Boolean);
     return '<section class="attention" aria-labelledby="att-h"><div class="sec-head"><h2 id="att-h">Needs attention</h2></div>' +
       (list.length ? '<ul class="att-list">' + list.join('') + '</ul>' : '<p class="empty">' + esc(emptyText) + '</p>') + '</section>';
+  }
+
+  /** Concise counts under the greeting; each jumps to its section. */
+  function summaryLine(parts) {
+    const list = parts.filter((p) => p.count > 0);
+    if (!list.length) return '';
+    return '<p class="summary-line">' + list.map((p) => p.href
+      ? '<a href="' + p.href + '"' + (p.action ? ' data-action="' + p.action + '"' : '') + (p.attrs || '') + '>' + p.count + ' ' + esc(p.text) + '</a>'
+      : '<button type="button" class="linklike" data-action="scroll-to" data-target="' + p.target + '">' + p.count + ' ' + esc(p.text) + '</button>').join('<span aria-hidden="true"> · </span>') + '</p>';
+  }
+
+  function decRow(o) {
+    return '<li class="dec-row"><div class="dec-main"><p class="dec-title">' + (o.warn ? ui.icon('alert') : '') + o.title + '</p>' +
+      (o.sub ? '<p class="dec-sub">' + o.sub + '</p>' : '') + '</div>' +
+      '<div class="dec-side">' + (o.num ? '<span class="dec-num">' + o.num + '</span>' : '') + (o.pill || '') + (o.action || '') + '</div></li>';
+  }
+
+  /**
+   * Conflicts & decisions: only items where someone must decide before work can continue.
+   * Normal tasks stay in Today and Tasks.
+   */
+  function decisionsSection(app) {
+    const s = app.state;
+    const cw = W.currentWeek();
+    const isMaha = app.user === 'maha';
+    const rows = [];
+    const pending = s.proposals.filter((p) => p.status === 'pending');
+    C.conflicts(s, cw, 8).filter((c) => c.kind === 'committed').forEach((c) => {
+      const w = c.summary.weekStart;
+      const hasProposal = pending.some((p) => p.weekStart === w);
+      rows.push(decRow({
+        warn: true,
+        title: 'Over capacity: week of ' + esc(D.fmtWeek(w)),
+        sub: hasProposal ? (isMaha ? 'Carla proposed a change; it needs your confirmation' : 'Change proposed; waiting for Maha to confirm') : 'Waiting for Carla to decide what moves',
+        num: '+' + fmtHours(c.summary.over),
+        action: '<a href="#/tasks/priorities" data-action="open-decision" data-week="' + w + '">' + (isMaha || hasProposal ? 'Review' : 'Decide what moves') + '</a>'
+      }));
+    });
+    pending.forEach((p) => rows.push(decRow({
+      title: isMaha ? 'Carla proposed a schedule change' : 'Your proposed schedule change',
+      sub: 'Week of ' + esc(D.fmtWeek(p.weekStart)) + ' · ' + p.moves.length + ' task' + (p.moves.length === 1 ? '' : 's'),
+      pill: isMaha ? '<span class="chip s-clarification">Needs your confirmation</span>' : '<span class="chip waiting">Waiting for Maha</span>',
+      action: '<a href="#/tasks/priorities" data-action="open-decision" data-week="' + p.weekStart + '">' + (isMaha ? 'Review and confirm' : 'View') + '</a>'
+    })));
+    if (isMaha) {
+      const meetingReq = s.meetings.filter((m) => m.status === 'pending').length;
+      if (meetingReq) rows.push(decRow({ title: meetingReq + ' meeting request' + (meetingReq === 1 ? '' : 's') + ' to answer', action: '<a href="#/calendar/meetings">Open meetings</a>' }));
+      C.tasksNeedingEstimate(s).forEach((t) => rows.push(decRow({
+        title: '<a href="#/tasks/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a>',
+        sub: 'Requested by ' + esc(people.name(t.requesterId)),
+        pill: '<span class="chip estimate-needed">Estimate needed</span>',
+        action: '<a href="#/tasks/' + encodeURIComponent(t.id) + '">Add estimate</a>'
+      })));
+    }
+    s.tasks.filter((t) => t.blocked && WORKING.includes(t.status)).forEach((t) => rows.push(decRow({
+      title: '<a href="#/tasks/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a>',
+      sub: 'Blocked: ' + esc(t.blocked.reason),
+      pill: ui.blockedChip(t),
+      action: '<a href="#/tasks/' + encodeURIComponent(t.id) + '">Open</a>'
+    })));
+    const html = '<section class="panel-card decisions" id="sec-decisions" aria-labelledby="dec-h"><div class="sec-head"><h2 id="dec-h" tabindex="-1">Conflicts &amp; decisions</h2>' +
+      '<a href="#/tasks/priorities">Priorities</a></div>' +
+      (rows.length ? '<ul class="dec-list">' + rows.join('') + '</ul>' : '<p class="empty">No decisions needed right now.</p>') + '</section>';
+    return { html, count: rows.length, nonCapacity: rows.length - C.conflicts(s, cw, 8).filter((c) => c.kind === 'committed').length };
+  }
+
+  /** Completed work that is not closed until Carla approves it. */
+  function approvalSection(app) {
+    const s = app.state;
+    const today = W.today();
+    const isCarla = app.user === 'carla';
+    const waiting = s.tasks.filter((t) => t.status === 'awaiting_approval' && (!isCarla || (t.approval && t.approval.requestedAt)))
+      .sort((a, b) => ((a.completedAt || '') < (b.completedAt || '') ? -1 : 1));
+    const approvedToday = s.tasks.filter((t) => t.status === 'complete' && t.approval && t.approval.decision === 'approved' && t.approval.decidedAt && D.todayISO(new Date(t.approval.decidedAt)) === today);
+    const row = (t) => {
+      const a = t.approval || {};
+      let when;
+      let side;
+      if (t.status === 'complete') {
+        when = 'Approved ' + esc(D.fmtStamp(a.decidedAt));
+        side = '<span class="chip s-complete">' + ui.icon('check') + 'Approved</span>';
+      } else if (!a.requestedAt) {
+        when = 'Completed ' + esc(D.fmtStamp(a.completedAt || t.completedAt));
+        side = '<span class="chip s-awaiting_approval">Awaiting approval</span>' +
+          (app.user === 'maha' ? '<button type="button" class="btn small" data-action="request-approval" data-id="' + esc(t.id) + '">Request approval</button>' : '');
+      } else {
+        when = 'Sent to Carla ' + esc(D.fmtStamp(a.requestedAt));
+        side = '<span class="chip s-awaiting_approval">Awaiting approval</span>' +
+          (isCarla ? '<button type="button" class="btn small accent" data-action="approve-work" data-id="' + esc(t.id) + '">' + ui.icon('check') + 'Approve</button>' +
+            '<a class="small" href="#/tasks/' + encodeURIComponent(t.id) + '">Request changes</a>' : '');
+      }
+      return '<li class="appr-row"><a class="trow-title" href="#/tasks/' + encodeURIComponent(t.id) + '">' + esc(t.title) + '</a>' +
+        '<p class="dec-sub">Requested by ' + esc(people.name(t.requesterId)) + '</p><p class="dec-sub">' + when + '</p>' +
+        '<div class="appr-side">' + side + '</div></li>';
+    };
+    const items = waiting.concat(approvedToday);
+    const html = '<section class="panel-card approvals" id="sec-approval" aria-labelledby="appr-h"><div class="sec-head"><h2 id="appr-h" tabindex="-1">' +
+      (isCarla ? 'Completed work awaiting your approval' : 'Completed work awaiting Carla’s approval') + '</h2></div>' +
+      (items.length ? '<ul class="appr-list">' + items.map(row).join('') + '</ul>' : '<p class="empty">No completed work is waiting for approval.</p>') + '</section>';
+    return { html, count: waiting.length, toSend: waiting.filter((t) => !(t.approval && t.approval.requestedAt)).length };
   }
 
   // ---------- Maha ----------
@@ -102,20 +203,32 @@
     const meetingReq = s.meetings.filter((m) => m.status === 'pending').length;
     const blocked = s.tasks.filter((t) => t.blocked && OPEN.includes(t.status)).length;
 
+    const dec = decisionsSection(app);
+    const appr = approvalSection(app);
+    const toDec = ' data-target="sec-decisions"';
     const attention = attentionSection([
       attentionItem(newReq, newReq === 1 ? 'new request to review' : 'new requests to review', '#/tasks', 'filter-tasks', ' data-status="submitted"'),
       attentionItem(clar, clar === 1 ? 'request waiting for clarification' : 'requests waiting for clarification', '#/tasks', 'filter-tasks', ' data-status="clarification"'),
-      attentionItem(needEst, needEst === 1 ? 'task needs an estimate' : 'tasks need an estimate', '#/tasks', 'filter-tasks', ' data-status="estimate"'),
-      attentionItem(meetingReq, meetingReq === 1 ? 'meeting request to answer' : 'meeting requests to answer', '#/calendar/meetings'),
-      attentionItem(pendingProposals.length, pendingProposals.length === 1 ? 'schedule change from Carla to confirm' : 'schedule changes from Carla to confirm', '#/tasks/priorities'),
-      attentionItem(conflicts.length, conflicts.length === 1 ? 'week over capacity' : 'weeks over capacity', '#/tasks/priorities'),
-      attentionItem(blocked, blocked === 1 ? 'blocked task' : 'blocked tasks', '#/tasks', 'filter-tasks', ' data-status="blocked"')
+      attentionItem(needEst, needEst === 1 ? 'task needs an estimate' : 'tasks need an estimate', '#sec-decisions', 'scroll-to', toDec),
+      attentionItem(meetingReq, meetingReq === 1 ? 'meeting request to answer' : 'meeting requests to answer', '#sec-decisions', 'scroll-to', toDec),
+      attentionItem(pendingProposals.length, pendingProposals.length === 1 ? 'schedule change from Carla to confirm' : 'schedule changes from Carla to confirm', '#sec-decisions', 'scroll-to', toDec),
+      attentionItem(conflicts.length, conflicts.length === 1 ? 'week over capacity' : 'weeks over capacity', '#sec-decisions', 'scroll-to', toDec),
+      attentionItem(blocked, blocked === 1 ? 'blocked task' : 'blocked tasks', '#sec-decisions', 'scroll-to', toDec),
+      attentionItem(appr.toSend, appr.toSend === 1 ? 'finished task to send for approval' : 'finished tasks to send for approval', '#sec-approval', 'scroll-to', ' data-target="sec-approval"')
     ], 'Nothing needs attention right now.');
 
-    return greeting(app, '<a class="btn primary" href="#/tasks/new">' + ui.icon('plus') + 'Create task</a>') +
+    const line = summaryLine([
+      { count: newReq, text: newReq === 1 ? 'new request' : 'new requests', href: '#/tasks', action: 'filter-tasks', attrs: ' data-status="submitted"' },
+      { count: dec.nonCapacity, text: dec.nonCapacity === 1 ? 'decision needed' : 'decisions needed', target: 'sec-decisions' },
+      { count: appr.count, text: 'awaiting approval', target: 'sec-approval' },
+      { count: conflicts.length, text: conflicts.length === 1 ? 'week over capacity' : 'weeks over capacity', target: 'sec-decisions' }
+    ]);
+
+    return greeting(app, '<a class="btn primary" href="#/tasks/new">' + ui.icon('plus') + 'Create task</a>', line) +
       '<div class="home-grid">' + todaySec +
       '<div class="home-side">' + ui.capacitySummary(summary, { footer: '<p class="small"><a href="#/calendar/leave">Events, leave and other weeks</a></p>' }) + '</div>' +
-      attention + '</div>';
+      attention + '</div>' +
+      '<div class="home-lower">' + dec.html + appr.html + '</div>';
   }
 
   // ---------- managers & Carla ----------
@@ -154,21 +267,31 @@
       attentionItem(needInfo.length, needInfo.length === 1 ? 'request needs more information from you' : 'requests need more information from you', '#/tasks', 'filter-mine-status', ' data-status="clarification"'),
       attentionItem(counter.length, counter.length === 1 ? 'meeting has a new time proposed' : 'meetings have a new time proposed', '#/calendar/meetings')
     ];
+    let lower = '';
+    let line = '';
     if (isCarla) {
+      const dec = decisionsSection(app);
+      const appr = approvalSection(app);
+      lower = '<div class="home-lower">' + dec.html + appr.html + '</div>';
       const conflicts = C.conflicts(s, cw, 8).filter((c) => c.kind === 'committed').length;
+      items.push(attentionItem(appr.count, appr.count === 1 ? 'finished task awaiting your approval' : 'finished tasks awaiting your approval', '#sec-approval', 'scroll-to', ' data-target="sec-approval"'));
+      line = summaryLine([
+        { count: appr.count, text: 'awaiting your approval', target: 'sec-approval' },
+        { count: conflicts, text: conflicts === 1 ? 'week over capacity' : 'weeks over capacity', target: 'sec-decisions' }
+      ]);
       const pending = s.proposals.filter((p) => p.status === 'pending').length;
-      const noPrio = s.tasks.filter((t) => OPEN.includes(t.status) && !t.priority).length;
+      const noPrio = s.tasks.filter((t) => WORKING.includes(t.status) && !t.priority).length;
       items.push(
-        attentionItem(conflicts, conflicts === 1 ? 'week over capacity: decide what moves' : 'weeks over capacity: decide what moves', '#/tasks/priorities'),
+        attentionItem(conflicts, conflicts === 1 ? 'week over capacity: decide what moves' : 'weeks over capacity: decide what moves', '#sec-decisions', 'scroll-to', ' data-target="sec-decisions"'),
         attentionItem(noPrio, noPrio === 1 ? 'open request without a priority' : 'open requests without a priority', '#/tasks', 'filter-tasks', ' data-priority="none"'),
-        attentionItem(pending, pending === 1 ? 'change waiting for Maha to confirm' : 'changes waiting for Maha to confirm', '#/tasks/priorities')
+        attentionItem(pending, pending === 1 ? 'change waiting for Maha to confirm' : 'changes waiting for Maha to confirm', '#sec-decisions', 'scroll-to', ' data-target="sec-decisions"')
       );
     }
 
     return greeting(app, '<a class="btn" href="#/calendar/meetings/new">' + ui.icon('users') + 'Request a meeting</a>' +
-      '<a class="btn primary" href="#/tasks/new">' + ui.icon('plus') + 'Request a task</a>') +
+      '<a class="btn primary" href="#/tasks/new">' + ui.icon('plus') + 'Request a task</a>', line) +
       '<div class="home-grid">' + reqSec + '<div class="home-side">' + sharedCapacity(app) + '</div>' +
-      attentionSection(items, 'Nothing needs your attention.') + '</div>';
+      attentionSection(items, 'Nothing needs your attention.') + '</div>' + lower;
   }
 
   WH.views.home = function (app) {
@@ -182,6 +305,23 @@
     app.mutate(() => W.planToday(app.state, app.user, el.getAttribute('data-id'), on), on ? 'Added to today.' : 'Removed from today.');
   };
 
+  WH.actions['request-approval'] = (app, el) => app.mutate(() => W.requestApproval(app.state, app.user, el.getAttribute('data-id')), 'Sent to Carla for approval.');
+  WH.actions['approve-work'] = (app, el) => app.mutate(() => W.approveWork(app.state, app.user, el.getAttribute('data-id'), ''), 'Approved. The task is closed.');
+
+  WH.actions['open-decision'] = (app, el) => {
+    app.ui.decisionWeek = el.getAttribute('data-week');
+    app.go('#/tasks/priorities');
+  };
+
+  /** Moves keyboard focus and view to a section on the same page. */
+  WH.actions['scroll-to'] = (app, el) => {
+    const sec = document.getElementById(el.getAttribute('data-target'));
+    if (!sec) return;
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const h = sec.querySelector('h2');
+    if (h) h.focus({ preventScroll: true });
+  };
+
   WH.actions['open-task'] = (app, el) => app.go('#/tasks/' + encodeURIComponent(el.getAttribute('data-id')));
 
   /** Today checkbox: completes the task (starting it first if it was only scheduled). */
@@ -192,7 +332,7 @@
       const t = app.state.tasks.find((x) => x.id === id);
       if (t && t.status === 'scheduled') W.startWork(app.state, app.user, id);
       return W.completeTask(app.state, app.user, id, '');
-    }, 'Marked Complete.');
+    }, (t) => (t.status === 'awaiting_approval' ? 'Finished. It now waits for Carla’s approval (see below).' : 'Marked Complete.'));
   };
 
   WH.actions['filter-tasks'] = (app, el) => {

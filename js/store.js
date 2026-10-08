@@ -14,14 +14,19 @@
 
   let storageWorks = true;
   let upgraded = false;
+  let migrated = false;
 
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && data.schemaVersion === 2) return data;
-        if (data && data.schemaVersion) upgraded = true; // older prototype data: replaced with the new sample
+        const result = WH.migrate.run(data, new Date());
+        if (result) {
+          if (result.migrated) { migrated = true; save(result.state); }
+          return result.state;
+        }
+        if (data && data.schemaVersion) upgraded = true; // very old prototype data: replaced with the new sample
       }
     } catch (e) {
       storageWorks = false;
@@ -103,5 +108,5 @@
     return tx('readwrite', (store) => store.clear()).catch(() => {});
   }
 
-  WH.store = { load, save, reset, getProfile, setProfile, saveFile, getFile, MAX_FILE_BYTES, storageOk: () => storageWorks, wasUpgraded: () => upgraded };
+  WH.store = { load, save, reset, getProfile, setProfile, saveFile, getFile, MAX_FILE_BYTES, storageOk: () => storageWorks, wasUpgraded: () => upgraded, wasMigrated: () => migrated };
 })(globalThis.WH = globalThis.WH || {});

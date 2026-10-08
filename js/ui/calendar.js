@@ -13,7 +13,7 @@
   const ui = WH.ui;
   const people = WH.people;
 
-  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress', 'awaiting_approval'];
+  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress'];
 
   /** Builds a map of date -> list of calendar items. */
   function itemsByDate(state) {

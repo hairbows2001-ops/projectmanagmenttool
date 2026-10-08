@@ -1,4 +1,4 @@
-/* Task detail: brief, documents, links, comments, dates, effort, schedule, approval, history and actions. */
+/* Task detail: brief, documents, links, comments, dates, effort, schedule, completion, history and actions. */
 (function (WH) {
   'use strict';
 
@@ -10,14 +10,14 @@
   const ui = WH.ui;
   const people = WH.people;
 
-  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress', 'awaiting_approval'];
+  const OPEN = ['submitted', 'clarification', 'scheduled', 'in_progress'];
 
   function fact(label, value) {
     return '<div><dt>' + esc(label) + '</dt><dd>' + (value === '' || value === null || value === undefined ? '<span class="muted">Not provided</span>' : value) + '</dd></div>';
   }
 
   function progress(task) {
-    const flow = ['submitted', 'scheduled', 'in_progress', 'awaiting_approval', 'complete'];
+    const flow = ['submitted', 'scheduled', 'in_progress', 'complete'];
     if (!flow.includes(task.status) && task.status !== 'clarification') {
       return '<p class="small muted">This request is ' + esc(W.STATUSES[task.status].toLowerCase()) + '. Its history is kept below.</p>';
     }
@@ -110,44 +110,29 @@
     const propHtml = proposals.length ? '<h3 class="eyebrow" style="margin-top:14px">Schedule change proposals</h3><ul class="rows">' + proposals.map((p) => {
       const mv = p.moves.find((m) => m.taskId === task.id);
       return '<li><div class="row-line"><span class="row-title">Move ' + fmtHours(mv.hours) + ' to week of ' + esc(D.fmtWeek(mv.toWeek)) + '</span>' +
-        (p.status === 'pending' ? '<span class="chip pending s-awaiting_approval">' + ui.icon('hourglass') + 'Pending Maha’s confirmation</span>'
+        (p.status === 'pending' ? '<span class="chip pending waiting">' + ui.icon('hourglass') + 'Pending Maha’s confirmation</span>'
           : p.status === 'confirmed' ? '<span class="chip s-complete">' + ui.icon('check') + 'Confirmed</span>' : '<span class="chip s-cancelled">' + ui.icon('x') + 'Not confirmed</span>') + '</div>' +
         '<div class="row-meta"><span>Proposed by ' + esc(people.name(p.createdBy)) + '</span><span>' + esc(p.reason) + '</span></div></li>';
     }).join('') + '</ul>' : '';
     return '<section class="card" aria-labelledby="sched-h"><div class="card-head"><h2 id="sched-h">Scheduled allocations</h2></div>' + unplaced + rows + propHtml + '</section>';
   }
 
-  const EMAIL_STATUS = { awaiting_reply: 'Awaiting reply', decided: 'Decision received', decided_in_app: 'Decided in the app', superseded: 'Outdated (request changed)', expired: 'Expired' };
-
-  function requestApprovalCard(app, task) {
-    const ra = task.requestApproval;
-    if (!ra) return '';
-    const emails = (app.state.emails || []).filter((e) => e.taskId === task.id);
-    const decided = ra.decidedAt ? fact('Decision', esc(WH.approval.REQUEST_APPROVAL[ra.status]) + ' by ' + esc(people.name(ra.decidedBy)) + ', ' + esc(D.fmtStamp(ra.decidedAt)) +
-      '<div class="small muted">' + esc(W.CHANNEL_LABELS[ra.channel] || '') + ' · version ' + ra.version + '</div>') : '';
-    const emailList = emails.length ? '<h3 class="eyebrow" style="margin-top:14px">Approval emails (simulated, not sent)</h3><ul class="rows">' + emails.map((e) => {
-      const st = W.emailStatus(e);
-      return '<li><div class="row-line"><span class="row-title small">Version ' + e.approvalVersion + ' · ' + esc(D.fmtStamp(e.sentAt)) + '</span><span class="chip ' + (st === 'awaiting_reply' ? 'pending' : st === 'decided' ? 's-complete' : 's-cancelled') + '">' + esc(EMAIL_STATUS[st]) + '</span></div>' +
-        '<div class="row-meta"><span>Ref ' + esc(e.token) + '</span><span><a href="#/email" data-action="open-email" data-id="' + esc(e.id) + '">View email</a></span></div></li>';
-    }).join('') + '</ul>' : '';
-    return '<section class="card ' + (ra.status === 'pending' ? 'attention' : ra.status === 'declined' ? 'alert' : '') + '" aria-labelledby="ra-h"><div class="card-head"><h2 id="ra-h">Request approval</h2>' + ui.requestApprovalChip(task, true) + '</div>' +
-      '<p class="small">' + esc(WH.approval.ruleText(task.requesterId)) + '</p>' +
-      '<dl class="facts">' + fact('Request version', String(task.briefVersion || 1) + ' <span class="small muted">(changes to the brief or requested deadline start a new version)</span>') + decided +
-      (ra.note ? fact('Carla\u2019s note', esc(ra.note)) : '') + '</dl>' + emailList +
-      '<p class="small muted" style="margin-top:10px">Separate from completed-work approval, which Carla gives when the finished work is submitted.</p></section>';
-  }
-
-  function approvalCard(task) {
-    const a = task.approval;
-    if (!a) return '';
-    const decision = a.decision === 'approved' ? '<span class="chip s-complete">' + ui.icon('check') + 'Approved</span>'
-      : a.decision === 'revisions' ? '<span class="chip blocked">' + ui.icon('alert') + 'Revisions requested</span>'
-        : '<span class="chip s-awaiting_approval">' + ui.icon('hourglass') + 'Awaiting Carla</span>';
-    return '<section class="card" aria-labelledby="appr-h"><div class="card-head"><h2 id="appr-h">Completed-work approval</h2>' + decision + '</div><dl class="facts">' +
-      fact('Submitted for approval', esc(D.fmtStamp(a.submittedAt)) + ' by ' + esc(people.name(a.submittedBy))) +
-      (a.note ? fact('Note from Maha', esc(a.note)) : '') +
-      (a.decidedAt ? fact('Decision', esc(D.fmtStamp(a.decidedAt)) + ' by ' + esc(people.name(a.decidedBy))) : '') +
-      (a.decisionNote ? fact('Carla’s note', esc(a.decisionNote)) : '') + '</dl></section>';
+  /** Completion details, plus any approval record kept from before the workflow was simplified. */
+  function completionCard(task) {
+    const done = task.status === 'complete' || task.completedAt;
+    if (!done && !task.approval) return '';
+    const rows = [];
+    if (task.completedAt) {
+      rows.push(fact('Marked complete', esc(D.fmtStamp(task.completedAt)) + ' by ' + esc(people.name(task.completedBy))));
+      if (task.completionNote) rows.push(fact('Note', esc(task.completionNote)));
+    }
+    if (task.approval) {
+      rows.push(fact('Earlier approval record', 'Submitted ' + esc(D.fmtStamp(task.approval.submittedAt)) +
+        (task.approval.decidedAt ? '; ' + esc(task.approval.decision) + ' by ' + esc(people.name(task.approval.decidedBy)) + ', ' + esc(D.fmtStamp(task.approval.decidedAt)) : '') +
+        (task.approval.decisionNote ? ' · ' + esc(task.approval.decisionNote) : '') + '<div class="small muted">Kept from before approvals were removed.</div>'));
+    }
+    return '<section class="card" aria-labelledby="done-h"><div class="card-head"><h2 id="done-h">Completion</h2>' + (task.status === 'complete' ? ui.statusChip('complete') : '') + '</div><dl class="facts">' +
+      (rows.length ? rows.join('') : fact('Marked complete', 'Recorded in the activity history')) + '</dl></section>';
   }
 
   // ---------- action panel ----------
@@ -201,21 +186,11 @@
       if (task.status === 'submitted' && can('task.requestClarification')) {
         parts.push(detailsForm('Ask for clarification', 'clarify', task, ui.field({ name: 'question', label: 'What do you need to know?', type: 'textarea', rows: 3, id: 'clarify-q' }), 'Send question'));
       }
-      if (OPEN.includes(task.status) && task.status !== 'awaiting_approval') {
+      if (OPEN.includes(task.status)) {
         parts.push(detailsForm(task.estimateHours > 0 ? 'Change estimate (' + fmtHours(task.estimateHours) + ')' : 'Estimate effort', 'estimate', task,
           ui.field({ name: 'estimate', label: 'Estimated hours', type: 'number', min: 0.5, step: 0.5, value: task.estimateHours || '', id: 'est-hours' }), 'Save estimate', { open: !(task.estimateHours > 0) }));
       }
-      const approvalOk = WH.approval.canSchedule(task);
-      if (!approvalOk && OPEN.includes(task.status)) {
-        parts.push('<div class="callout warn small"><p>' + (task.requestApproval.status === 'declined'
-          ? 'Carla declined this request. It cannot be scheduled unless the requester revises it and Carla approves.'
-          : 'Waiting for Carla\u2019s request approval. You can clarify and estimate, but not schedule yet.') + '</p></div>');
-        if (task.requestApproval.status === 'pending') {
-          parts.push('<p><button type="button" class="btn small" data-action="resend-approval" data-id="' + esc(task.id) + '">Resend approval email (simulated)</button>' +
-            '<span class="hint">Use after estimating, so Carla sees the effort.</span></p>');
-        }
-      }
-      if (approvalOk && ['submitted', 'clarification', 'scheduled', 'in_progress'].includes(task.status)) {
+      if (['submitted', 'clarification', 'scheduled', 'in_progress'].includes(task.status)) {
         if (task.estimateHours > 0) {
           parts.push(detailsForm(task.agreedDeadline ? 'Reschedule' : 'Schedule and agree deadline', 'schedule', task, scheduleForm(app, task),
             task.agreedDeadline ? 'Save schedule' : 'Schedule', { open: task.status === 'submitted' && task.estimateHours > 0 }));
@@ -223,14 +198,16 @@
           parts.push('<p class="small muted">Add an estimate before scheduling.</p>');
         }
       }
-      if (['scheduled', 'in_progress', 'awaiting_approval'].includes(task.status)) {
+      if (['scheduled', 'in_progress'].includes(task.status)) {
         parts.push(detailsForm('Update remaining effort (' + fmtHours(C.remainingOf(task)) + ')', 'remaining', task,
           ui.field({ name: 'remaining', label: 'Hours still needed', type: 'number', min: 0, step: 0.5, value: C.remainingOf(task), id: 'rem-hours' }), 'Save'));
       }
-      if (task.status === 'scheduled' && approvalOk) parts.push('<p><button type="button" class="btn small accent" data-action="start-work" data-id="' + esc(task.id) + '">' + ui.icon('play') + 'Start work</button></p>');
+      if (task.status === 'scheduled') parts.push('<p><button type="button" class="btn small accent" data-action="start-work" data-id="' + esc(task.id) + '">' + ui.icon('play') + 'Start work</button></p>');
       if (task.status === 'in_progress') {
-        parts.push(detailsForm('Submit for Carla’s approval', 'submit-approval', task,
-          ui.field({ name: 'note', label: 'Note for Carla (optional)', type: 'textarea', rows: 2, id: 'appr-note' }), 'Submit for approval', { open: true }));
+        parts.push(task.blocked
+          ? '<p class="small muted">Clear the block before marking this task complete.</p>'
+          : detailsForm('Mark as complete', 'complete', task,
+            ui.field({ name: 'note', label: 'Note (optional)', type: 'textarea', rows: 2, id: 'done-note', hint: 'For example, where the final files are.' }), 'Mark complete', { open: C.remainingOf(task) === 0 }));
       }
       if (['scheduled', 'in_progress'].includes(task.status)) {
         parts.push(task.blocked
@@ -239,22 +216,9 @@
         parts.push('<p><label class="check"><input type="checkbox" data-change="toggle-social" data-id="' + esc(task.id) + '"' + (task.coveredBySocial ? ' checked' : '') +
           '><span>Covered by weekly social media time<span class="hint">Use for routine posts, so hours are not counted twice.</span></span></label></p>');
       }
-      if (task.status === 'awaiting_approval') parts.push('<p class="small">Waiting for Carla to approve or request revisions.</p>');
     }
 
     // Carla
-    if (can('request.decide') && task.requestApproval && task.requestApproval.status === 'pending' && OPEN.includes(task.status)) {
-      parts.push('<div class="callout warn"><p><strong>Request approval needed.</strong> Approving lets Maha schedule it. It does not confirm the requested deadline.</p>' +
-        '<form data-form="request-decision" data-id="' + esc(task.id) + '" novalidate>' + ui.field({ name: 'note', label: 'Note (optional)', id: 'ra-note' }) +
-        '<div class="btn-row"><button type="submit" name="decision" value="approve" class="btn small accent">' + ui.icon('check') + 'Approve request</button>' +
-        '<button type="submit" name="decision" value="decline" class="btn small danger">' + ui.icon('x') + 'Decline request</button></div></form></div>');
-    }
-    if (can('task.approve')) {
-      parts.push('<div class="callout info"><p><strong>Completed work is ready for your approval.</strong></p>' +
-        '<form data-form="approve" data-id="' + esc(task.id) + '" novalidate>' + ui.field({ name: 'note', label: 'Note (optional)', id: 'approve-note' }) +
-        '<button type="submit" class="btn small accent">' + ui.icon('check') + 'Approve as complete</button></form></div>');
-      parts.push(detailsForm('Request revisions', 'revisions', task, ui.field({ name: 'note', label: 'What needs to change?', type: 'textarea', rows: 3, id: 'rev-note' }), 'Return for revisions'));
-    }
     if (can('task.setPriority') && OPEN.includes(task.status)) {
       const opts = [{ value: '', label: 'Not set' }].concat(Object.keys(W.PRIORITIES).map((k) => ({ value: k, label: k + ' ' + W.PRIORITIES[k] })));
       parts.push(detailsForm('Set priority', 'priority', task,
@@ -268,24 +232,12 @@
         '<p class="small muted">Cancelled requests keep their history.</p>', 'Cancel request', { danger: true }));
     }
     if (can('task.archive')) parts.push('<p><button type="button" class="btn small" data-action="archive" data-id="' + esc(task.id) + '">' + ui.icon('archive') + 'Archive</button> <span class="small muted">History is kept.</span></p>');
-    if (u === 'maha' && task.status === 'awaiting_approval') { /* message already shown */ }
 
     if (!parts.length) {
       parts.push('<p class="small muted">' + ui.icon('lock').replace('<svg', '<svg width="14" height="14"') + ' View only. You can see this summary. ' +
         (task.requesterId === u ? 'This request is closed.' : 'Only ' + esc(people.name(task.requesterId)) + ', Maha and Carla can change it.') + '</p>');
     }
     return '<section class="card accent" aria-labelledby="act-h"><div class="card-head"><h2 id="act-h">Actions</h2><span class="muted small">As ' + esc(people.first(u)) + '</span></div>' + parts.join('') + '</section>';
-  }
-
-  function raCallout(task) {
-    const ra = task.requestApproval;
-    if (!ra || !OPEN.includes(task.status)) return '';
-    if (ra.status === 'pending') {
-      return '<div class="callout warn"><p><strong>Request approval: Pending.</strong> Carla approves this request before Maha commits it to the schedule' +
-        (C.COMMITTED_STATUSES.includes(task.status) ? '. It was already scheduled, but the brief changed, so Carla must approve the new version before it continues' : '') + '.</p></div>';
-    }
-    if (ra.status === 'declined') return '<div class="callout danger"><p><strong>Request approval: Declined</strong> by Carla' + (ra.note ? ': ' + esc(ra.note) : '') + '. It will not be scheduled. The requester can revise the brief to ask again, or cancel it.</p></div>';
-    return '';
   }
 
   WH.views.task = function (app, params) {
@@ -295,10 +247,10 @@
     const clar = task.status === 'clarification' ? '<div class="callout warn"><p><strong>Needs clarification.</strong> ' + esc((task.comments.filter((c) => c.kind === 'clarification').pop() || {}).text || '') + '</p></div>' : '';
     return '<p class="small"><a href="#/workload">← Shared workload</a></p>' +
       '<div class="page-head"><div><p class="eyebrow">Request from ' + esc(people.name(task.requesterId)) + (task.project ? ' · ' + esc(task.project) : '') + '</p>' +
-      '<h1>' + esc(task.title) + '</h1><div class="chips">' + ui.statusChip(task.status) + ui.blockedChip(task) + ui.requestApprovalChip(task, true) + ui.priorityChip(task) + ui.urgencyChip(task) + ui.sampleChip(task) + '</div></div></div>' +
-      progress(task) + raCallout(task) + blocked + clar +
+      '<h1>' + esc(task.title) + '</h1><div class="chips">' + ui.statusChip(task.status) + ui.blockedChip(task) + ui.priorityChip(task) + ui.urgencyChip(task) + ui.sampleChip(task) + '</div></div></div>' +
+      progress(task) + blocked + clar +
       '<div class="grid grid-main" style="margin-top:18px"><div class="stack">' + briefCard(task) + docsCard(app, task) + commentsCard(app, task) + '</div>' +
-      '<div class="stack">' + actionsCard(app, task) + requestApprovalCard(app, task) + datesCard(task) + scheduleCard(app, task) + approvalCard(task) +
+      '<div class="stack">' + actionsCard(app, task) + datesCard(task) + scheduleCard(app, task) + completionCard(task) +
       '<section class="card" aria-labelledby="hist-h"><div class="card-head"><h2 id="hist-h">Activity history</h2></div>' + ui.historyList(task.history) + '</section>' +
       '</div></div>';
   };
@@ -327,19 +279,11 @@
     const allocations = Object.keys(d).filter((k) => k.startsWith('alloc:')).map((k) => ({ weekStart: k.slice(6), hours: d[k] }));
     app.mutate(() => W.scheduleTask(app.state, app.user, id(form), { agreedDeadline: d.agreedDeadline, allocations }), 'Schedule saved.', { form });
   };
-  WH.forms['submit-approval'] = (app, form, d) => app.mutate(() => W.submitForApproval(app.state, app.user, id(form), d.note), 'Submitted to Carla for approval.', { form });
+  WH.forms.complete = (app, form, d) => app.mutate(() => W.completeTask(app.state, app.user, id(form), d.note), 'Marked Complete.', { form });
   WH.forms.block = (app, form, d) => app.mutate(() => W.setBlocked(app.state, app.user, id(form), d.reason), 'Flagged as blocked.', { form });
-  WH.forms.approve = (app, form, d) => app.mutate(() => W.approve(app.state, app.user, id(form), d.note), 'Approved and marked Complete.', { form });
-  WH.forms.revisions = (app, form, d) => app.mutate(() => W.requestRevisions(app.state, app.user, id(form), d.note), 'Returned to Maha for revisions.', { form });
   WH.forms.priority = (app, form, d) => app.mutate(() => W.setPriority(app.state, app.user, id(form), d.priority, d.reason), 'Priority saved.', { form });
   WH.forms.cancel = (app, form, d) => app.mutate(() => W.cancelTask(app.state, app.user, id(form), d.reason), 'Request cancelled. History is kept.', { form });
 
-  WH.forms['request-decision'] = (app, form, d, ev) => {
-    const decision = form.getAttribute('data-decision') || 'approve';
-    app.mutate(() => W.decideRequest(app.state, app.user, id(form), decision, d.note),
-      decision === 'approve' ? 'Request approved. Maha and the requester are notified (simulated). Maha still confirms dates.' : 'Request declined. Maha and the requester are notified (simulated).', { form });
-  };
-  WH.actions['resend-approval'] = (app, el) => app.mutate(() => W.resendApprovalEmail(app.state, app.user, el.getAttribute('data-id')), 'New approval email created (simulated, not sent).');
   WH.actions['start-work'] = (app, el) => app.mutate(() => W.startWork(app.state, app.user, el.getAttribute('data-id')), 'Status: In progress.');
   WH.actions.unblock = (app, el) => app.mutate(() => W.clearBlocked(app.state, app.user, el.getAttribute('data-id')), 'Block cleared.');
   WH.actions.archive = (app, el) => app.mutate(() => W.archiveTask(app.state, app.user, el.getAttribute('data-id')), 'Archived. History is kept.');

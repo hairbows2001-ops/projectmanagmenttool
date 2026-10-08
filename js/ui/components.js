@@ -30,7 +30,6 @@
     gauge: '<path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/>',
     scale: '<path d="M12 3v18M5 21h14M4 8h16M7 8l-3 7h6zM17 8l-3 7h6z"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/>',
-    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>',
     lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'
   };
 
@@ -41,7 +40,7 @@
 
   const STATUS_ICONS = {
     submitted: 'inbox', clarification: 'question', scheduled: 'calendar', in_progress: 'play',
-    awaiting_approval: 'hourglass', complete: 'check', cancelled: 'x', archived: 'archive'
+    complete: 'check', cancelled: 'x', archived: 'archive'
   };
 
   function statusChip(status) {
@@ -50,18 +49,6 @@
 
   function blockedChip(task) {
     return task.blocked ? '<span class="chip blocked" title="' + esc(task.blocked.reason) + '">' + icon('alert') + 'Blocked</span>' : '';
-  }
-
-  /** Request approval (separate from completed-work approval). `full` shows "Not required" too. */
-  function requestApprovalChip(task, full) {
-    const ra = task.requestApproval;
-    if (!ra) return '';
-    if (ra.status === 'not_required' && !full) return '';
-    const closed = ['complete', 'cancelled', 'archived'].includes(task.status);
-    if (ra.status === 'pending' && closed) return full ? '<span class="chip ra ra-not_required">Request approval: Not decided</span>' : '';
-    const icons = { not_required: 'info', pending: 'hourglass', approved: 'check', declined: 'x' };
-    return '<span class="chip ra ra-' + ra.status + '" title="Carla\u2019s approval of the request (separate from approving completed work)">' + icon(icons[ra.status]) +
-      'Request approval: ' + esc(WH.approval.REQUEST_APPROVAL[ra.status]) + '</span>';
   }
 
   function priorityChip(task) {
@@ -109,7 +96,7 @@
       '<td class="title-cell">' + taskLink(t) + '<span class="sub">' + esc(t.project || t.deliverableType || '') + '</span>' +
         (t.sample ? '<span class="sub">Fictional sample</span>' : '') + '</td>' +
       (o.hideRequester ? '' : '<td data-label="Requester">' + esc(people.name(t.requesterId)) + '</td>') +
-      '<td data-label="Status"><span class="chips">' + statusChip(t.status) + blockedChip(t) + requestApprovalChip(t) + '</span></td>' +
+      '<td data-label="Status"><span class="chips">' + statusChip(t.status) + blockedChip(t) + '</span></td>' +
       '<td data-label="Priority"><span class="chips">' + priorityChip(t) + urgencyChip(t) + '</span></td>' +
       '<td data-label="Requested">' + requestedDeadline(t) + '</td>' +
       '<td data-label="Agreed">' + dateOr(t.agreedDeadline, 'Not agreed') + '</td>' +
@@ -126,7 +113,7 @@
     const o = opts || {};
     if (!tasks.length) return '<p class="empty">' + esc(o.empty || 'Nothing here right now.') + '</p>';
     return '<ul class="rows">' + tasks.map((t) => '<li><div class="row-line"><a class="row-title" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
-      esc(t.title) + '</a><span class="chips">' + statusChip(t.status) + blockedChip(t) + requestApprovalChip(t) + (o.showPriority ? priorityChip(t) : '') + '</span></div>' +
+      esc(t.title) + '</a><span class="chips">' + statusChip(t.status) + blockedChip(t) + (o.showPriority ? priorityChip(t) : '') + '</span></div>' +
       '<div class="row-meta"><span>' + esc(people.name(t.requesterId)) + '</span>' +
       (o.extra ? '<span>' + o.extra(t) + '</span>' : '') + (t.sample ? '<span>Fictional sample</span>' : '') + '</div></li>').join('') + '</ul>';
   }
@@ -221,7 +208,7 @@
   }
 
   WH.ui = {
-    icon, statusChip, blockedChip, requestApprovalChip, priorityChip, urgencyChip, sampleChip, effortText, dateOr, requestedDeadline,
+    icon, statusChip, blockedChip, priorityChip, urgencyChip, sampleChip, effortText, dateOr, requestedDeadline,
     taskLink, taskTable, taskRows, capacityCard, historyList, field, checkbox, weekOptions, personName, STATUS_ICONS
   };
 })(globalThis.WH = globalThis.WH || {});

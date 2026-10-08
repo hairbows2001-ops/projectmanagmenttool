@@ -16,9 +16,6 @@
       'Sample documents are listed by name only and have no file attached.</p><p>Do not upload real client, resident, donor or staff information.</p></section>' +
       '<section class="card"><h2>Calendar and Outlook</h2><p>The calendar is internal to this app. It is <strong>not connected to Outlook</strong>, and nothing is sent to or read from the Women’s Habitat mail server. ' +
       'A later integration depends on how IT has set up Outlook (see <code>docs/before-real-use.md</code>).</p></section>' +
-      '<section class="card attention"><h2>Approval emails</h2><p>Request approval emails to Carla are <strong>simulated</strong>. They are created as records in this browser and shown on the <a href="#/email">Simulated email</a> page. ' +
-      '<strong>No email is sent or received.</strong> They are addressed to Carla\u2019s configured approval address (' + WH.util.esc(WH.approval.approverAddress() || 'not configured') + '). ' +
-      'Real sending and reply processing turn on only once the email integration is configured. A simulation tool stands in for Carla replying \u201capprove\u201d or \u201cdecline\u201d.</p></section>' +
       '<section class="card"><h2>Sample content</h2><p>All tasks, meetings, events, comments and dates are <strong>fictional</strong>. They are there to demonstrate competing requests from Lina and Christine, a week over capacity, and Carla resolving it. Names and titles are used only to show the roles.</p></section>' +
       '<section class="card"><h2>Rules used</h2><ul class="small">' +
       '<li>Weekly capacity is 37.7 h; 6 h is reserved for social media, leaving 31.7 h.</li>' +
@@ -26,9 +23,9 @@
       '<li>Task effort is allocated to specific weeks. Remaining effort is used for unfinished work.</li>' +
       '<li>Requests not yet scheduled are shown as potential impact, separate from committed hours.</li>' +
       '<li>Requests without an estimate show “Estimate needed” and are never counted as zero.</li>' +
-      '<li>Managers request urgency; only Carla sets priority and approves work as Complete.</li>' +
-      '<li>Request approval is separate: requests from managers other than Lina need Carla\u2019s approval before Maha schedules them. Lina\u2019s, Carla\u2019s and Maha\u2019s own requests skip it. Approval does not confirm the requested deadline.</li>' +
-      '<li>Changing a brief\u2019s title, description, deliverable, audience, purpose, requested deadline or urgency needs approval again.</li>' +
+      '<li>All requests go directly to Maha for review, clarification, estimates and scheduling. There is no approval step.</li>' +
+      '<li>Statuses: Submitted → Needs clarification → Scheduled → In progress → Complete, plus Blocked, Cancelled and Archived. Maha marks work Complete.</li>' +
+      '<li>Managers request urgency; Carla, as lead manager, sets priorities and resolves competing requests.</li>' +
       '<li>Carla proposes schedule changes; Maha confirms the dates. Nothing moves until confirmed.</li></ul></section>' +
       '</div>';
   };

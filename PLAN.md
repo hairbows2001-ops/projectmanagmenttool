@@ -29,7 +29,7 @@ Code layout:
 ## Build steps
 
 1. **Rules first**: people and roles, permission checks, status transitions, task history, and capacity calculations (37.7 h week, 6 h social media reserve, meetings, events, weekly allocations, remaining effort, "Estimate needed").
-2. **Sample data**: fictional scenario with competing requests from Lina and Christine, an over-capacity week, a pending change proposal from Carla, a past resolved one, meeting requests, and items awaiting approval. Dates are relative to the current week so the demo always looks current.
+2. **Sample data**: fictional scenario with competing requests from Lina and Christine, an over-capacity week, a pending change proposal from Carla, a past resolved one, meeting requests, and work in progress. Dates are relative to the current week so the demo always looks current.
 3. **Screens**: welcome/profile selector, Maha / manager / Carla dashboards, shared workload (list + board + filters), calendar (month + week), task detail, request form, meeting requests, capacity, and priorities & decisions.
 4. **Design**: warm cream background, serif headings, sans-serif body, thin dividers, restrained cards. Teal `#61B3B5` and green `#B4DAA4` as accents with navy `#162939` text. Status is shown with icons and words, not just colour.
 5. **Checks**: automated tests for rules; browser walk-through of the main flows, keyboard navigation, contrast and mobile layout.
@@ -37,8 +37,8 @@ Code layout:
 
 ## Key rules encoded
 
-- Statuses: Submitted → Needs clarification → Scheduled → In progress → Awaiting approval → Complete, plus Blocked (a flag with a reason), Cancelled and Archived (history kept).
-- Only Carla approves work as Complete or requests revisions.
+- Statuses: Submitted → Needs clarification → Scheduled → In progress → Complete, plus Blocked (a flag with a reason), Cancelled and Archived (history kept).
+- All requests go directly to Maha; there is no approval step. Maha marks work Complete. (Simplified in a later update.)
 - Managers' urgency is a *request*; only Carla sets priority.
 - Carla *proposes* schedule changes; Maha *confirms* dates. Nothing moves until Maha confirms.
 - Unscheduled requests are shown as "potential impact", never mixed into committed hours.

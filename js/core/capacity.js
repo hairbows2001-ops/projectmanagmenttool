@@ -22,7 +22,7 @@
   const WORK_END = '17:00';
 
   // Committed work counts toward capacity; pending work is only "potential impact".
-  const COMMITTED_STATUSES = ['scheduled', 'in_progress', 'awaiting_approval'];
+  const COMMITTED_STATUSES = ['scheduled', 'in_progress'];
   const PENDING_STATUSES = ['submitted', 'clarification'];
 
   function weekSettings(state, week) {
@@ -104,8 +104,7 @@
     const undated = { hours: 0, tasks: [], needsEstimate: [] };
     const bucket = (w) => (weeks[w] = weeks[w] || { hours: 0, tasks: [], needsEstimate: [] });
 
-    // Declined requests are not potential work; pending-approval requests still are.
-    state.tasks.filter((t) => PENDING_STATUSES.includes(t.status) && !(t.requestApproval && t.requestApproval.status === 'declined')).forEach((t) => {
+    state.tasks.filter((t) => PENDING_STATUSES.includes(t.status)).forEach((t) => {
       const hasEstimate = typeof t.estimateHours === 'number' && t.estimateHours > 0;
       if (!t.requestedDeadline) {
         if (hasEstimate) { undated.hours += t.estimateHours; undated.tasks.push({ task: t, hours: t.estimateHours }); }
@@ -204,7 +203,6 @@
   /** Tasks (committed or pending) that have no effort estimate. */
   function tasksNeedingEstimate(state) {
     return state.tasks.filter((t) => (PENDING_STATUSES.includes(t.status) || COMMITTED_STATUSES.includes(t.status)) &&
-      !(t.requestApproval && t.requestApproval.status === 'declined') &&
       !(typeof t.estimateHours === 'number' && t.estimateHours > 0));
   }
 

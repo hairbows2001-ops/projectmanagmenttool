@@ -19,7 +19,7 @@
   const byId = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));
 
   function get(id) { return byId[id] || null; }
-  function name(id) { return byId[id] ? byId[id].name : 'Unknown'; }
+  function name(id) { return byId[id] ? byId[id].name : id === 'system' ? 'Workflow update' : 'Unknown'; }
   function first(id) { return byId[id] ? byId[id].first : 'Unknown'; }
   /** People who can submit requests (everyone except Maha). */
   function requesters() { return PEOPLE.filter((p) => p.role !== 'owner'); }

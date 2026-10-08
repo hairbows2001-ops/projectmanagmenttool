@@ -49,23 +49,19 @@
       case 'task.schedule':
       case 'task.start':
       case 'task.block':
-      case 'task.submitForApproval':
+      case 'task.complete':
       case 'task.setRemaining':
       case 'task.planToday':
       case 'proposal.confirm':
       case 'proposal.decline':
       case 'meeting.respond':
-      case 'request.resendEmail':
       case 'capacity.adjust':
       case 'event.manage':
         return isOwner(userId);
 
       // Carla's decisions
-      case 'task.approve':
-      case 'task.requestRevisions':
       case 'task.setPriority':
       case 'proposal.create':
-      case 'request.decide':
         return isExec(userId);
 
       case 'task.cancel':

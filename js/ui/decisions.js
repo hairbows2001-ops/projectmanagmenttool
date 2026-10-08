@@ -99,7 +99,7 @@
         (isMaha && p.status === 'pending' ? '<div class="field" data-field="deadline-' + esc(t.id) + '" style="margin:8px 0 0"><label for="cf-' + esc(p.id) + '-' + esc(t.id) + '">Confirmed deadline for ' + esc(t.title) + '</label>' +
           '<input type="date" id="cf-' + esc(p.id) + '-' + esc(t.id) + '" name="deadline:' + esc(t.id) + '" value="' + esc(mv.proposedDeadline || (t.agreedDeadline && D.weekStart(t.agreedDeadline) >= mv.toWeek ? t.agreedDeadline : D.addDays(mv.toWeek, 4))) + '"></div>' : '') + '</li>';
     }).join('');
-    const status = p.status === 'pending' ? '<span class="chip pending s-awaiting_approval">' + ui.icon('hourglass') + 'Pending Maha’s confirmation</span>'
+    const status = p.status === 'pending' ? '<span class="chip pending waiting">' + ui.icon('hourglass') + 'Pending Maha’s confirmation</span>'
       : p.status === 'confirmed' ? '<span class="chip s-complete">' + ui.icon('check') + 'Confirmed by ' + esc(people.first(p.decidedBy)) + '</span>'
         : '<span class="chip s-cancelled">' + ui.icon('x') + 'Not confirmed</span>';
     let actions = '';

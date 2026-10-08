@@ -35,7 +35,7 @@
     const base = {
       blocked: null, priority: null, priorityReason: '', estimateHours: null, remainingHours: null,
       agreedDeadline: null, allocations: [], coveredBySocial: false, plannedDates: [], documents: [], links: [],
-      comments: [], history: [], approval: null, sample: true, project: '', deliverableType: '', audience: '',
+      comments: [], history: [], sample: true, project: '', deliverableType: '', audience: '',
       purpose: '', requestedDeadline: null, dateUnknown: false, deadlineReason: '', deadlineFixed: false,
       requestedUrgency: 'normal', urgencyReason: '', materials: '', missingInfo: '', notes: ''
     };
@@ -140,14 +140,13 @@
         id: 'sample-recognition', requesterId: 'leslie', title: 'Staff recognition week poster',
         description: 'Fictional sample. Poster and email banner celebrating staff recognition week.',
         project: 'Staff Engagement (sample)', deliverableType: 'Graphic or infographic', requestedDeadline: day(7),
-        status: 'awaiting_approval', priority: 'P4', estimateHours: 3, remainingHours: 0, agreedDeadline: day(7),
+        status: 'in_progress', priority: 'P4', estimateHours: 3, remainingHours: 0, agreedDeadline: day(7),
         allocations: [{ weekStart: wk(-1), hours: 3 }],
-        approval: { submittedBy: 'maha', submittedAt: stamp(day(1), '15:30'), note: 'Final poster attached in shared drive (sample).', decision: null, decidedBy: null, decidedAt: null, decisionNote: '' },
         history: [
           h(-9, '11:00', 'leslie', 'Request submitted', 'Staff recognition week poster'),
           h(-8, '09:00', 'maha', 'Status changed', 'Submitted → Scheduled'),
           h(-7, '10:00', 'maha', 'Status changed', 'Scheduled → In progress'),
-          h(1, '15:30', 'maha', 'Status changed', 'In progress → Awaiting approval')
+          h(1, '15:30', 'maha', 'Remaining effort updated', '1 h → 0 h · Final poster ready in shared drive (sample)')
         ]
       }),
       task({
@@ -215,11 +214,11 @@
         project: 'Resident Communications (sample)', deliverableType: 'Print piece (flyer, poster, brochure)',
         requestedDeadline: day(-9), status: 'complete', priority: 'P3', estimateHours: 4, remainingHours: 0, agreedDeadline: day(-9),
         allocations: [{ weekStart: wk(-2), hours: 4 }],
-        approval: { submittedBy: 'maha', submittedAt: stamp(day(-10), '15:00'), note: '', decision: 'approved', decidedBy: 'carla', decidedAt: stamp(day(-9), '09:30'), decisionNote: 'Clear and welcoming.' },
+        completedBy: 'maha', completedAt: stamp(day(-9), '09:30'), completionNote: 'Printed and posted in all houses (sample).',
         history: [
           h(-16, '10:00', 'alicia', 'Request submitted', 'House rules poster refresh'),
-          h(-10, '15:00', 'maha', 'Status changed', 'In progress → Awaiting approval'),
-          h(-9, '09:30', 'carla', 'Status changed', 'Awaiting approval → Complete · Approved: Clear and welcoming.')
+          h(-12, '10:00', 'maha', 'Status changed', 'Scheduled → In progress'),
+          h(-9, '09:30', 'maha', 'Status changed', 'In progress → Complete · Note: Printed and posted in all houses (sample).')
         ]
       }),
       task({
@@ -282,50 +281,7 @@
       { at: stamp(day(1), '10:30'), by: 'carla', action: 'Proposed schedule change', detail: 'Week of ' + D.fmtWeek(wk(1)), ref: 'sample-p1' }
     ];
 
-    const state = { schemaVersion: 2, seededAt: now.toISOString(), seededWeek: w0, tasks, meetings, events, capacity, proposals, log,
-      emails: [], notifications: [], inbound: [] };
-
-    // Request approval (separate from completed-work approval).
-    // Lina, Carla and Maha are exempt. Other managers' scheduled work was approved earlier in the app;
-    // their unscheduled requests are waiting for Carla, each with a SIMULATED approval email.
-    const pendingIds = ['sample-flyer', 'sample-job-posts', 'sample-budget'];
-    tasks.forEach((t) => {
-      t.briefVersion = 1;
-      if (!WH.approval.requiresApproval(t.requesterId)) {
-        t.requestApproval = { status: 'not_required', version: 1 };
-        return;
-      }
-      const submitted = t.history[0].at;
-      const later = (mins) => new Date(new Date(submitted).getTime() + mins * 60000).toISOString();
-      if (pendingIds.includes(t.id)) {
-        t.requestApproval = { status: 'pending', version: 1, requestedAt: submitted, decidedBy: null, decidedAt: null, channel: null, note: '' };
-        t.history.splice(1, 0, { at: submitted, by: t.requesterId, action: 'Request approval: Pending', detail: 'New request · version 1' });
-      } else if (t.id === 'sample-camp-recap') {
-        t.requestApproval = { status: 'pending', version: 1, requestedAt: submitted, decidedBy: null, decidedAt: null, channel: null, note: '' };
-      } else {
-        t.requestApproval = { status: 'approved', version: 1, requestedAt: submitted, decidedBy: 'carla', decidedAt: later(90), channel: 'in_app', note: '' };
-        t.history.splice(1, 0, { at: later(90), by: 'carla', action: 'Request approved', detail: 'Version 1 · In the app' });
-      }
-    });
-
-    const byId = (id) => tasks.find((t) => t.id === id);
-    WH.workflow.createApprovalEmail(state, byId('sample-flyer'), 'christine', byId('sample-flyer').history[0].at);
-    WH.workflow.createApprovalEmail(state, byId('sample-job-posts'), 'leslie', byId('sample-job-posts').history[0].at);
-
-    // Sheila changed the requested deadline after her first email, so version 1 is outdated.
-    const budget = byId('sample-budget');
-    budget.requestedDeadline = day(23);
-    WH.workflow.createApprovalEmail(state, budget, 'sheila', budget.history[0].at);
-    budget.requestedDeadline = day(25);
-    budget.briefVersion = 2;
-    state.emails[state.emails.length - 1].status = 'superseded';
-    budget.requestApproval = Object.assign({}, budget.requestApproval, { version: 2, requestedAt: stamp(day(-1), '15:10') });
-    budget.history.push(
-      { at: stamp(day(-1), '15:10'), by: 'sheila', action: 'Brief edited', detail: 'Requested deadline: ' + D.fmtShort(day(23)) + ' → ' + D.fmtShort(day(25)) },
-      { at: stamp(day(-1), '15:10'), by: 'sheila', action: 'Request approval: Pending', detail: 'Material change (Requested deadline) · version 2' });
-    WH.workflow.createApprovalEmail(state, budget, 'sheila', stamp(day(-1), '15:10'));
-
-    return state;
+    return { schemaVersion: 3, seededAt: now.toISOString(), seededWeek: w0, tasks, meetings, events, capacity, proposals, log };
   }
 
   WH.seed = { build, stamp };

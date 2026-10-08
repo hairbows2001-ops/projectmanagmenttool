@@ -22,7 +22,7 @@
     route: { name: 'welcome', params: [] },
     ui: {
       workloadView: 'list',
-      filters: { requester: '', status: 'open', priority: '', project: '', requestApproval: '', from: '', to: '' },
+      filters: { requester: '', status: 'open', priority: '', project: '', from: '', to: '' },
       calView: 'month',
       calCursor: null,
       decisionWeek: null
@@ -46,7 +46,6 @@
     [/^\/requests\/new$/, 'requestForm'],
     [/^\/tasks\/([^/]+)\/edit$/, 'requestForm'],
     [/^\/tasks\/([^/]+)$/, 'task'],
-    [/^\/email$/, 'email'],
     [/^\/about$/, 'about']
   ];
 
@@ -80,7 +79,6 @@
       ['capacity', '#/capacity', 'Capacity', 'gauge'],
       ['decisions', '#/decisions', 'Priorities & decisions', 'scale', conflictCount],
       ['meetings', '#/meetings', 'Meetings', 'users', pendingMeetings],
-      ['email', '#/email', 'Simulated email', 'mail', (s.emails || []).filter((e) => WH.workflow.emailStatus(e) === 'awaiting_reply').length],
       ['about', '#/about', 'About this prototype', 'info']
     ];
   }
@@ -170,7 +168,7 @@
     return ({
       welcome: 'Welcome', dashboard: 'Dashboard', workload: 'Shared workload', calendar: 'Calendar', capacity: 'Capacity',
       decisions: 'Priorities & decisions', meetings: 'Meetings', meetingForm: 'Request a meeting', requestForm: 'Request a task',
-      task: 'Task', email: 'Simulated email', about: 'About this prototype'
+      task: 'Task', about: 'About this prototype'
     })[name] || 'Page';
   }
 
@@ -332,8 +330,10 @@
     app.state = WH.store.load();
     app.user = WH.store.getProfile();
     if (app.user && !WH.people.get(app.user)) app.user = null;
-    if (WH.store.wasUpgraded()) {
-      setTimeout(() => toast('The prototype was updated with request approval. Sample data was refreshed.', 'warn'), 300);
+    if (WH.store.wasMigrated()) {
+      setTimeout(() => toast('Workflow simplified: approvals were removed. Your saved tasks and history were kept; tasks that were awaiting approval are back In progress.', 'warn'), 300);
+    } else if (WH.store.wasUpgraded()) {
+      setTimeout(() => toast('The prototype was updated. Sample data was refreshed.', 'warn'), 300);
     }
     if (!WH.store.storageOk()) {
       setTimeout(() => toast('This browser is blocking local storage. Changes will not be saved after refresh.', 'error'), 300);

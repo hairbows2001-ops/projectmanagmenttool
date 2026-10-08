@@ -15,7 +15,7 @@ const W2 = '2026-10-19';
 
 function fresh() { return WH.seed.build(NOW); }
 function emptyState() {
-  return { schemaVersion: 1, tasks: [], meetings: [], events: [], capacity: {}, proposals: [], log: [] };
+  return { schemaVersion: 3, tasks: [], meetings: [], events: [], capacity: {}, proposals: [], log: [] };
 }
 
 test('dates use Toronto time and Monday weeks', () => {
@@ -108,7 +108,7 @@ test('managers edit only their own briefs; edits are recorded', () => {
   assert.match(last.detail, /Description/);
 });
 
-test('full workflow: clarify, estimate, schedule, start, submit, revise, approve', () => {
+test('full workflow: clarify, estimate, schedule, start, block, complete (no approval step)', () => {
   const st = emptyState();
   const t = W.createTask(st, 'christine', { title: 'Flyer', description: 'A flyer', requestedDeadline: '2026-10-20' });
   assert.throws(() => W.requestClarification(st, 'carla', t.id, 'q'), WH.util.PermissionError);
@@ -116,10 +116,6 @@ test('full workflow: clarify, estimate, schedule, start, submit, revise, approve
   assert.equal(t.status, 'clarification');
   W.provideInfo(st, 'christine', t.id, 'Letter size');
   assert.equal(t.status, 'submitted');
-  // Christine's requests need Carla's request approval before scheduling.
-  assert.throws(() => W.scheduleTask(st, 'maha', t.id, { agreedDeadline: '2026-10-16', allocations: [{ weekStart: W0, hours: 5 }] }), (e) => !!e.fields.requestApproval);
-  W.decideRequest(st, 'carla', t.id, 'approve');
-
   assert.throws(() => W.scheduleTask(st, 'maha', t.id, { agreedDeadline: '2026-10-16', allocations: [{ weekStart: W0, hours: 2 }] }), (e) => !!e.fields.estimate);
   assert.throws(() => W.setEstimate(st, 'maha', t.id, 0), (e) => !!e.fields.estimate);
   assert.throws(() => W.setEstimate(st, 'maha', t.id, -3), (e) => !!e.fields.estimate);
@@ -132,20 +128,17 @@ test('full workflow: clarify, estimate, schedule, start, submit, revise, approve
 
   W.startWork(st, 'maha', t.id);
   W.setBlocked(st, 'maha', t.id, 'Waiting for photos');
-  assert.throws(() => W.submitForApproval(st, 'maha', t.id), /block/i);
+  assert.throws(() => W.completeTask(st, 'maha', t.id), /block/i);
   W.clearBlocked(st, 'maha', t.id);
-  W.submitForApproval(st, 'maha', t.id, 'Ready');
-  assert.equal(t.status, 'awaiting_approval');
-
-  assert.throws(() => W.approve(st, 'maha', t.id), WH.util.PermissionError);
-  assert.throws(() => W.approve(st, 'christine', t.id), WH.util.PermissionError);
-  assert.throws(() => W.requestRevisions(st, 'carla', t.id, ''), (e) => !!e.fields.note);
-  W.requestRevisions(st, 'carla', t.id, 'Bigger headline');
-  assert.equal(t.status, 'in_progress');
-  W.submitForApproval(st, 'maha', t.id);
-  W.approve(st, 'carla', t.id, 'Good');
+  // Only Maha marks work complete
+  assert.throws(() => W.completeTask(st, 'carla', t.id), WH.util.PermissionError);
+  assert.throws(() => W.completeTask(st, 'christine', t.id), WH.util.PermissionError);
+  W.completeTask(st, 'maha', t.id, 'Printed');
   assert.equal(t.status, 'complete');
-  assert.ok(t.history.length >= 10);
+  assert.equal(t.remainingHours, 0);
+  assert.equal(t.completedBy, 'maha');
+  assert.match(t.history[t.history.length - 1].detail, /In progress → Complete/);
+  assert.ok(t.history.length >= 8);
   assert.ok(t.history.every((h) => h.by && h.at && h.action));
 });
 
@@ -153,7 +146,7 @@ test('invalid status transitions are refused', () => {
   const st = emptyState();
   const t = W.createTask(st, 'lina', { title: 'x', description: 'y' });
   assert.throws(() => W.startWork(st, 'maha', t.id), (e) => !!e.fields.status);
-  assert.throws(() => W.submitForApproval(st, 'maha', t.id), (e) => !!e.fields.status);
+  assert.throws(() => W.completeTask(st, 'maha', t.id), (e) => !!e.fields.status); // must be In progress first
   assert.throws(() => W.archiveTask(st, 'maha', t.id), WH.util.PermissionError);
   W.cancelTask(st, 'lina', t.id, 'No longer needed');
   assert.equal(t.status, 'cancelled');
@@ -243,9 +236,9 @@ test('events outside regular hours use time but never add capacity', () => {
 
 test('permission table: managers cannot act as Carla or Maha', () => {
   const can = WH.permissions.can;
-  const task = { requesterId: 'lina', status: 'awaiting_approval' };
+  const task = { requesterId: 'lina', status: 'in_progress' };
   ['lina', 'christine', 'leslie', 'sheila', 'alicia', 'esperanca'].forEach((u) => {
-    assert.equal(can(u, 'task.approve', task), false);
+    assert.equal(can(u, 'task.complete', task), false);
     assert.equal(can(u, 'task.setPriority', task), false);
     assert.equal(can(u, 'proposal.create'), false);
     assert.equal(can(u, 'task.schedule', task), false);
@@ -255,4 +248,91 @@ test('permission table: managers cannot act as Carla or Maha', () => {
   assert.equal(can('christine', 'task.comment', { requesterId: 'lina', status: 'submitted' }), false);
   assert.equal(can('lina', 'task.editBrief', { requesterId: 'lina', status: 'complete' }), false);
   assert.equal(can('nobody', 'view'), false);
+});
+
+test('no approval step blocks submitting, scheduling or completing, for any requester', () => {
+  ['lina', 'christine', 'leslie', 'sheila', 'alicia', 'esperanca', 'carla', 'maha'].forEach((who) => {
+    const st = emptyState();
+    const t = W.createTask(st, who, { title: 'Request from ' + who, description: 'Something' });
+    assert.equal(t.status, 'submitted', who);
+    assert.equal(t.requestApproval, undefined, who);
+    W.setEstimate(st, 'maha', t.id, 2);
+    W.scheduleTask(st, 'maha', t.id, { agreedDeadline: '2026-10-16', allocations: [{ weekStart: W0, hours: 2 }] });
+    W.startWork(st, 'maha', t.id);
+    W.completeTask(st, 'maha', t.id);
+    assert.equal(t.status, 'complete', who);
+  });
+  assert.equal(W.STATUSES.awaiting_approval, undefined);
+  assert.deepEqual(W.MAIN_FLOW, ['submitted', 'clarification', 'scheduled', 'in_progress', 'complete']);
+  ['submitForApproval', 'approve', 'requestRevisions', 'decideRequest', 'processEmailReply'].forEach((fn) => assert.equal(W[fn], undefined, fn));
+});
+
+test('Carla keeps priorities and change proposals; Maha confirms dates', () => {
+  const can = WH.permissions.can;
+  assert.equal(can('carla', 'task.setPriority', { status: 'submitted' }), true);
+  assert.equal(can('carla', 'proposal.create'), true);
+  assert.equal(can('carla', 'proposal.confirm'), false);
+  assert.equal(can('maha', 'proposal.confirm'), true);
+  assert.equal(can('maha', 'task.complete', { status: 'in_progress' }), true);
+  assert.equal(can('carla', 'task.complete', { status: 'in_progress' }), false);
+});
+
+test('sample data uses the simplified workflow', () => {
+  const st = fresh();
+  assert.equal(st.schemaVersion, 3);
+  assert.ok(st.tasks.every((t) => W.STATUSES[t.status]));
+  assert.equal(st.tasks.find((t) => t.id === 'sample-recognition').status, 'in_progress');
+  assert.equal(st.emails, undefined);
+});
+
+test('migration from the approval version keeps data and history, and unblocks work', () => {
+  // A saved state in the previous (version 2) format
+  const st = fresh();
+  st.schemaVersion = 2;
+  const rec = st.tasks.find((t) => t.id === 'sample-recognition');
+  rec.status = 'awaiting_approval';
+  rec.approval = { submittedBy: 'maha', submittedAt: '2026-10-06T19:30:00Z', note: 'Ready', decision: null };
+  const flyer = st.tasks.find((t) => t.id === 'sample-flyer');
+  flyer.requestApproval = { status: 'pending', version: 1 };
+  const budget = st.tasks.find((t) => t.id === 'sample-budget');
+  budget.requestApproval = { status: 'declined', version: 2 };
+  const brochure = st.tasks.find((t) => t.id === 'sample-brochure');
+  brochure.requestApproval = { status: 'approved', version: 1 };
+  st.emails = [{ id: 'e1', taskId: 'sample-flyer' }];
+  const before = JSON.parse(JSON.stringify(st));
+  const historyCounts = Object.fromEntries(st.tasks.map((t) => [t.id, t.history.length]));
+
+  const result = WH.migrate.run(st, NOW);
+  assert.equal(result.migrated, true);
+  assert.equal(st.schemaVersion, 3);
+  // Awaiting approval → In progress, with an explanatory note
+  assert.equal(rec.status, 'in_progress');
+  const note = rec.history[rec.history.length - 1];
+  assert.equal(note.by, 'system');
+  assert.match(note.detail, /Awaiting approval → In progress/);
+  assert.match(note.detail, /completed-work approval was removed/);
+  assert.equal(WH.people.name('system'), 'Workflow update');
+  // Pending and declined request approvals get a note and no longer block
+  assert.match(flyer.history[flyer.history.length - 1].detail, /no longer need Carla/);
+  assert.match(budget.history[budget.history.length - 1].detail, /Declined/);
+  assert.equal(brochure.history.length, historyCounts['sample-brochure']); // approved: nothing to add
+  W.setEstimate(st, 'maha', 'sample-budget', 3);
+  W.scheduleTask(st, 'maha', 'sample-budget', { agreedDeadline: '2026-10-30', allocations: [{ weekStart: W1, hours: 3 }] });
+  assert.equal(budget.status, 'scheduled');
+  // Maha can now complete the migrated task
+  W.completeTask(st, 'maha', 'sample-recognition');
+  assert.equal(rec.status, 'complete');
+  // Nothing else lost: same tasks, earlier history entries intact, old records kept
+  assert.equal(st.tasks.length, before.tasks.length);
+  before.tasks.forEach((bt) => {
+    const t = st.tasks.find((x) => x.id === bt.id);
+    assert.deepEqual(t.history.slice(0, bt.history.length), bt.history);
+    assert.equal(t.title, bt.title);
+    assert.deepEqual(t.documents, bt.documents);
+    assert.deepEqual(t.comments, bt.comments);
+  });
+  assert.deepEqual(st.emails, before.emails);
+  assert.equal(st.meetings.length, before.meetings.length);
+  // Running again does nothing
+  assert.equal(WH.migrate.run(st, NOW).migrated, false);
 });

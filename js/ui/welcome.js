@@ -37,6 +37,6 @@
     app.user = id;
     app.justEntered = true;
     WH.store.setProfile(id);
-    app.go('#/dashboard');
+    app.go('#/home');
   };
 })(globalThis.WH = globalThis.WH || {});

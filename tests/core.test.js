@@ -87,8 +87,13 @@ test('conflicts list committed and potential overloads', () => {
 
 test('creating a request: required fields, requester from profile, urgency is not priority', () => {
   const st = emptyState();
-  assert.throws(() => W.createTask(st, 'lina', { title: '', description: '' }), (e) => !!(e.fields.title && e.fields.description));
-  assert.throws(() => W.createTask(st, 'lina', { title: 'x', description: 'y', requestedUrgency: 'urgent' }), (e) => !!e.fields.urgencyReason);
+  // Only a title is required: managers can submit an incomplete brief and add details later.
+  assert.throws(() => W.createTask(st, 'lina', { title: '', description: '' }), (e) => !!e.fields.title && !e.fields.description);
+  const quick = W.createTask(st, 'lina', { title: 'Quick idea', requestedUrgency: 'urgent' });
+  assert.equal(quick.description, '');
+  W.updateBrief(st, 'lina', quick.id, { title: 'Quick idea', description: 'More detail added later' });
+  assert.equal(quick.description, 'More detail added later');
+  st.tasks.length = 0;
   assert.throws(() => W.createTask(st, 'lina', { title: 'x', description: 'y', requestedDeadline: '2026-10-01' }), (e) => !!e.fields.requestedDeadline);
   const t = W.createTask(st, 'lina', { title: 'Post', description: 'Need a post', requestedUrgency: 'urgent', urgencyReason: 'Event' });
   assert.equal(t.requesterId, 'lina');

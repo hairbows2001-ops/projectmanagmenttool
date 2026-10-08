@@ -132,7 +132,6 @@
       notes: str(data.notes, 3000)
     };
     if (!b.title) errors.title = 'Add a short task title.';
-    if (!b.description) errors.description = 'Describe what is needed, even briefly.';
     if (b.deliverableType && !DELIVERABLE_TYPES.includes(b.deliverableType)) errors.deliverableType = 'Choose a deliverable type from the list.';
     if (!URGENCY[b.requestedUrgency]) errors.requestedUrgency = 'Choose an urgency.';
 
@@ -148,7 +147,6 @@
       b.dateUnknown = true;
     }
     if (b.deadlineFixed && !b.requestedDeadline) errors.deadlineFixed = 'A fixed deadline needs a date.';
-    if (b.requestedUrgency === 'urgent' && !b.urgencyReason) errors.urgencyReason = 'Please say why this is urgent.';
 
     if (Object.keys(errors).length) throw new ValidationError(errors);
     b.requestedDeadline = b.requestedDeadline || null;

@@ -21,39 +21,52 @@
     user: null,
     route: { name: 'welcome', params: [] },
     ui: {
-      workloadView: 'list',
+      tasksView: 'list',
       filters: { requester: '', status: 'open', priority: '', project: '', from: '', to: '' },
+      weekCursor: null,
       calView: 'month',
       calCursor: null,
-      decisionWeek: null
-    },
-    justEntered: false
+      decisionWeek: null,
+      capWeek: null,
+      base: '#/home'
+    }
   };
   WH.app = app;
+  WH.panels = WH.panels || {};
 
   // ---------- routing ----------
+  // Pages: home, tasks, calendar, about, welcome.
+  // Panels open over the last page you were on: task details, new/edit request, priorities, new meeting.
 
   const ROUTES = [
-    [/^\/?$/, 'home'],
+    [/^\/?$/, 'root'],
     [/^\/welcome$/, 'welcome'],
-    [/^\/dashboard$/, 'dashboard'],
-    [/^\/workload$/, 'workload'],
-    [/^\/calendar$/, 'calendar'],
-    [/^\/capacity$/, 'capacity'],
-    [/^\/decisions$/, 'decisions'],
-    [/^\/meetings$/, 'meetings'],
-    [/^\/meetings\/new$/, 'meetingForm'],
-    [/^\/requests\/new$/, 'requestForm'],
-    [/^\/tasks\/([^/]+)\/edit$/, 'requestForm'],
-    [/^\/tasks\/([^/]+)$/, 'task'],
+    [/^\/home$/, 'home'],
+    [/^\/tasks$/, 'tasks', { view: 'list' }],
+    [/^\/tasks\/week$/, 'tasks', { view: 'week' }],
+    [/^\/tasks\/board$/, 'tasks', { view: 'board' }],
+    [/^\/tasks\/new$/, 'panel', { panel: 'requestForm' }],
+    [/^\/tasks\/priorities$/, 'panel', { panel: 'priorities' }],
+    [/^\/tasks\/([^/]+)\/edit$/, 'panel', { panel: 'requestForm' }],
+    [/^\/tasks\/([^/]+)$/, 'panel', { panel: 'task' }],
+    [/^\/calendar$/, 'calendar', { tab: 'calendar' }],
+    [/^\/calendar\/meetings$/, 'calendar', { tab: 'meetings' }],
+    [/^\/calendar\/leave$/, 'calendar', { tab: 'leave' }],
+    [/^\/calendar\/meetings\/new$/, 'panel', { panel: 'meetingForm' }],
     [/^\/about$/, 'about']
   ];
 
+  // Older addresses keep working.
+  const REDIRECTS = {
+    '/dashboard': '#/home', '/workload': '#/tasks', '/decisions': '#/tasks/priorities', '/meetings': '#/calendar/meetings',
+    '/meetings/new': '#/calendar/meetings/new', '/capacity': '#/calendar/leave', '/requests/new': '#/tasks/new'
+  };
+
   function parseRoute() {
     const path = decodeURIComponent((location.hash || '#/').slice(1));
-    for (const [re, name] of ROUTES) {
+    for (const [re, name, extra] of ROUTES) {
       const m = path.match(re);
-      if (m) return { name, params: m.slice(1), path };
+      if (m) return Object.assign({ name, params: m.slice(1), path }, extra || {});
     }
     return { name: 'notFound', params: [], path };
   }
@@ -64,51 +77,53 @@
   }
   app.go = go;
 
+  function closePanel() { go(app.ui.base || '#/home'); }
+  app.closePanel = closePanel;
+
   // ---------- layout ----------
 
   function navItems() {
-    const s = app.state;
-    const cw = WH.workflow.currentWeek();
-    const conflictCount = WH.capacity.conflicts(s, cw, 8).filter((c) => c.kind === 'committed').length +
-      s.proposals.filter((p) => p.status === 'pending').length;
-    const pendingMeetings = s.meetings.filter((m) => m.status === 'pending' || m.status === 'counter').length;
     return [
-      ['dashboard', '#/dashboard', 'Dashboard', 'home'],
-      ['workload', '#/workload', 'Shared workload', 'list'],
-      ['calendar', '#/calendar', 'Calendar', 'calendar'],
-      ['capacity', '#/capacity', 'Capacity', 'gauge'],
-      ['decisions', '#/decisions', 'Priorities & decisions', 'scale', conflictCount],
-      ['meetings', '#/meetings', 'Meetings', 'users', pendingMeetings],
-      ['about', '#/about', 'About this prototype', 'info']
+      ['home', '#/home', 'Home', 'home'],
+      ['tasks', '#/tasks', 'Tasks', 'list'],
+      ['calendar', '#/calendar', 'Calendar', 'calendar']
     ];
   }
 
-  function shell(content) {
+  function profileMenu(p) {
+    return '<div class="menu profile-menu">' +
+      '<button type="button" class="profile-btn-top" data-action="menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="profile-menu">' +
+      '<span class="avatar" aria-hidden="true">' + esc(p.first.charAt(0)) + '</span><span class="who"><strong>' + esc(p.name) + '</strong><small>' + esc(p.title) + '</small></span>' +
+      '<span class="caret" aria-hidden="true">▾</span><span class="visually-hidden">Profile menu</span></button>' +
+      '<div class="menu-list" id="profile-menu" role="menu" hidden>' +
+      '<p class="menu-note" role="presentation">Demo workspace: simulated sign-in. Changes are saved in this browser only.</p>' +
+      '<button type="button" role="menuitem" data-action="switch-profile">Switch profile</button>' +
+      '<a role="menuitem" href="#/about">About this prototype</a>' +
+      '<button type="button" role="menuitem" data-action="reset-data">Reset sample data</button></div></div>';
+  }
+
+  function shell(content, panelHtml) {
     const p = WH.people.get(app.user);
-    const current = app.route.name === 'requestForm' || app.route.name === 'task' ? 'workload'
-      : app.route.name === 'meetingForm' ? 'meetings' : app.route.name;
-    const nav = navItems().map(([key, href, label, ic, count]) =>
-      '<li><a href="' + href + '"' + (current === key ? ' aria-current="page"' : '') + '>' + ui.icon(ic).replace('<svg', '<svg width="18" height="18"') +
-      '<span>' + esc(label) + '</span>' + (count ? '<span class="nav-count" aria-label="' + count + ' items">' + count + '</span>' : '') + '</a></li>').join('');
-    const cta = p.role === 'owner'
-      ? '<a class="btn accent" href="#/capacity">' + ui.icon('plus') + 'Add event or leave</a><a class="btn" href="#/requests/new">' + ui.icon('plus') + 'Add my own task</a>'
-      : '<a class="btn primary" href="#/requests/new">' + ui.icon('plus') + 'Request a task</a><a class="btn" href="#/meetings/new">' + ui.icon('users') + 'Request a meeting</a>';
-    return '<header class="topbar"><a class="brand" href="#/dashboard"><span class="brand-name">Communications Workspace</span>' +
+    const section = app.route.section;
+    const nav = navItems().map(([key, href, label, ic]) =>
+      '<li><a href="' + href + '"' + (section === key ? ' aria-current="page"' : '') + '>' + ui.icon(ic).replace('<svg', '<svg width="18" height="18"') +
+      '<span>' + esc(label) + '</span></a></li>').join('');
+    return '<div class="app-frame"' + (panelHtml ? ' inert' : '') + '>' +
+      '<header class="topbar"><a class="brand" href="#/home"><span class="brand-name">Communications Workspace</span>' +
       '<span class="brand-org">Women’s Habitat of Etobicoke</span></a>' +
-      '<div class="profile-box"><div class="who"><strong>' + esc(p.name) + '</strong><small>' + esc(p.title) + '</small></div>' +
-      '<button class="btn small" type="button" data-action="switch-profile">Switch profile</button></div></header>' +
-      '<div class="shell"><nav class="sidenav" aria-label="Main"><ul>' + nav + '</ul><div class="nav-cta">' + cta + '</div></nav>' +
-      '<main id="main" tabindex="-1">' + content + '</main></div>' + footer();
+      '<span class="demo-label" title="Simulated sign-in. All tasks, meetings and dates are fictional sample data, saved in this browser only.">Demo workspace<span class="demo-extra"> · fictional data</span></span>' +
+      profileMenu(p) + '</header>' +
+      '<div class="shell"><nav class="sidenav" aria-label="Main"><ul>' + nav + '</ul></nav>' +
+      '<main id="main" tabindex="-1">' + content + '</main></div></div>' + (panelHtml || '');
   }
 
-  function footer() {
-    return '<footer class="site-foot"><span>Prototype. Changes are saved <strong>only in this browser on this computer</strong>; other people do not see them.</span>' +
-      '<span><button type="button" class="linklike" data-action="reset-data">Reset sample data</button></span></footer>';
-  }
-
-  function notice() {
-    return '<div class="notice" role="note"><strong>Prototype</strong> · Simulated access, not secure sign-in · All content is fictional sample data · ' +
-      'Saved in this browser only · <a href="#/about">Details</a></div>';
+  function panelFrame(p) {
+    return '<div class="panel-layer"><div class="panel-backdrop" data-action="close-panel" aria-hidden="true"></div>' +
+      '<aside class="panel' + (p.wide ? ' wide' : '') + '" role="dialog" aria-modal="true" aria-labelledby="panel-title">' +
+      '<header class="panel-head"><div class="panel-titles">' + (p.eyebrow ? '<p class="eyebrow">' + esc(p.eyebrow) + '</p>' : '') +
+      '<h2 id="panel-title" tabindex="-1">' + esc(p.title) + '</h2></div>' +
+      '<button type="button" class="icon-btn" data-action="close-panel" aria-label="Close">' + ui.icon('x') + '</button></header>' +
+      '<div class="panel-body" id="panel-body">' + p.html + '</div></aside></div>';
   }
 
   // ---------- rendering ----------
@@ -116,24 +131,30 @@
   function render(opts) {
     const o = opts || {};
     const root = document.getElementById('app');
-    app.route = parseRoute();
+    let route = parseRoute();
+    if (REDIRECTS[route.path]) { location.replace(REDIRECTS[route.path]); return; }
     if (app.user && !WH.people.get(app.user)) app.user = null;
+    if (route.name === 'root') route = Object.assign(route, { name: app.user ? 'home' : 'welcome' });
+    if (!app.user && route.name !== 'about') route = { name: 'welcome', params: [] };
+    app.route = route;
 
-    let name = app.route.name;
-    if (name === 'home') name = app.user ? 'dashboard' : 'welcome';
-    if (!app.user && name !== 'welcome' && name !== 'about') name = 'welcome';
-    app.route.name = name;
+    // Remember the page under a panel, so closing returns there.
+    if (['home', 'tasks', 'calendar'].includes(route.name)) app.ui.base = '#' + route.path;
+    const baseRoute = route.name === 'panel' ? parseBase() : route;
+    route.section = baseRoute.name;
 
     let html;
+    let panelHtml = '';
     try {
-      if (name === 'welcome') {
+      if (route.name === 'welcome') {
         html = WH.views.welcome(app);
-      } else if (name === 'notFound' || !WH.views[name]) {
-        html = '<div class="page-head"><div><h1 tabindex="-1">Page not found</h1><p><a href="#/dashboard">Back to your dashboard</a></p></div></div>';
       } else if (!app.user) {
-        html = '<main id="main" tabindex="-1" style="max-width:900px;margin:0 auto">' + WH.views[name](app) + '<p><a href="#/welcome">Back to profiles</a></p></main>';
+        html = '<main id="main" tabindex="-1" class="solo">' + WH.views.about(app) + '<p><a href="#/welcome">Back to profiles</a></p></main>';
+      } else if (route.name === 'notFound' || (route.name !== 'panel' && !WH.views[route.name])) {
+        html = '<h1>Page not found</h1><p><a href="#/home">Back to Home</a></p>';
       } else {
-        html = WH.views[name](app, app.route.params);
+        html = WH.views[baseRoute.name](app, baseRoute);
+        if (route.name === 'panel') panelHtml = panelFrame(WH.panels[route.panel](app, route.params));
       }
     } catch (e) {
       console.error(e);
@@ -141,35 +162,53 @@
     }
 
     const scrollY = window.scrollY;
+    const oldPanel = document.getElementById('panel-body');
+    const panelScroll = oldPanel ? oldPanel.scrollTop : 0;
     const activeId = document.activeElement && document.activeElement.id;
-    if (name === 'welcome' || !app.user) {
-      root.innerHTML = notice() + html;
-    } else {
-      root.innerHTML = notice() + shell(html);
-    }
-    document.title = pageTitle(name) + ' · Communications Workspace (prototype)';
+    // Remember which collapsible sections were open, so a redraw of the same page keeps them.
+    const samePage = app.lastPath === route.path;
+    const sections = {};
+    if (samePage) root.querySelectorAll('details[id]').forEach((d) => { sections[d.id] = d.open; });
+    app.lastPath = route.path;
+    root.innerHTML = (route.name === 'welcome' || !app.user) ? html : shell(html, panelHtml);
+    Object.keys(sections).forEach((id) => { const d = document.getElementById(id); if (d) d.open = sections[id]; });
+    document.body.classList.toggle('panel-open', !!panelHtml);
+    document.title = pageTitle(route) + ' · Communications Workspace (demo)';
 
+    const panelBody = document.getElementById('panel-body');
     if (o.focus) {
-      const h1 = root.querySelector('h1');
-      window.scrollTo(0, 0);
-      if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
+      if (panelHtml) {
+        document.getElementById('panel-title').focus({ preventScroll: true });
+      } else {
+        window.scrollTo(0, 0);
+        const h1 = root.querySelector('h1');
+        if (h1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
+      }
     } else {
       window.scrollTo(0, scrollY);
+      if (panelBody) panelBody.scrollTop = panelScroll;
       if (activeId) {
         const el = document.getElementById(activeId);
         if (el) el.focus({ preventScroll: true });
+        else if (panelHtml) document.getElementById('panel-title').focus({ preventScroll: true });
       }
     }
-    if (typeof WH.afterRender === 'function') WH.afterRender(app);
   }
   app.render = render;
 
-  function pageTitle(name) {
-    return ({
-      welcome: 'Welcome', dashboard: 'Dashboard', workload: 'Shared workload', calendar: 'Calendar', capacity: 'Capacity',
-      decisions: 'Priorities & decisions', meetings: 'Meetings', meetingForm: 'Request a meeting', requestForm: 'Request a task',
-      task: 'Task', about: 'About this prototype'
-    })[name] || 'Page';
+  function parseBase() {
+    const hash = app.ui.base || '#/home';
+    const path = decodeURIComponent(hash.slice(1));
+    for (const [re, name, extra] of ROUTES) {
+      const m = path.match(re);
+      if (m && name !== 'panel') return Object.assign({ name, params: m.slice(1), path }, extra || {});
+    }
+    return { name: 'tasks', params: [], path: '/tasks', view: 'list' };
+  }
+
+  function pageTitle(route) {
+    if (route.name === 'panel') return ({ task: 'Task', requestForm: 'Request', priorities: 'Priorities', meetingForm: 'Request a meeting' })[route.panel] || 'Details';
+    return ({ welcome: 'Welcome', home: 'Home', tasks: 'Tasks', calendar: 'Calendar', about: 'About this prototype' })[route.name] || 'Page';
   }
 
   // ---------- changes ----------
@@ -224,6 +263,8 @@
       const wrap = form.querySelector('[data-field="' + CSS.escape(key) + '"]');
       if (!wrap) { unplaced.push(fields[key]); return; }
       wrap.classList.add('invalid');
+      // Open any collapsed section that hides the field, so the message can be seen.
+      for (let d = wrap.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
       const msg = document.createElement('div');
       msg.className = 'field-error';
       msg.id = 'err-' + key.replace(/[^a-z0-9-]/gi, '') + '-' + Math.random().toString(36).slice(2, 7);
@@ -275,8 +316,10 @@
   // ---------- events ----------
 
   function onClick(ev) {
+    if (!ev.target.closest('.menu')) closeMenus();
     const el = ev.target.closest('[data-action]');
     if (!el) return;
+    if (el.closest('.menu-list')) closeMenus();
     const name = el.getAttribute('data-action');
     const handler = WH.actions[name];
     if (!handler) return;
@@ -290,7 +333,6 @@
     ev.preventDefault();
     const handler = WH.forms[form.getAttribute('data-form')];
     if (!handler) return;
-    if (ev.submitter && ev.submitter.name === 'decision') form.setAttribute('data-decision', ev.submitter.value);
     clearErrors(form);
     handler(app, form, formData(form));
   }
@@ -309,7 +351,66 @@
     if (handler) handler(app, el, ev);
   }
 
+  // ---------- menus (profile menu and row action menus) ----------
+
+  function closeMenus(except) {
+    document.querySelectorAll('.menu-list:not([hidden])').forEach((list) => {
+      if (except && list === except) return;
+      list.hidden = true;
+      const btn = list.parentElement.querySelector('[data-action="menu-toggle"]');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  WH.actions['menu-toggle'] = (a, btn) => {
+    const list = btn.parentElement.querySelector('.menu-list');
+    const opening = list.hidden;
+    closeMenus(list);
+    list.hidden = !opening;
+    btn.setAttribute('aria-expanded', String(opening));
+    if (opening) {
+      const first = list.querySelector('[role="menuitem"], [role="menuitemcheckbox"]');
+      if (first) first.focus();
+    }
+  };
+
+  function onKeydown(ev) {
+    const list = ev.target.closest && ev.target.closest('.menu-list');
+    if (ev.key === 'Escape') {
+      if (list && !list.hidden) {
+        ev.preventDefault();
+        closeMenus();
+        const btn = list.parentElement.querySelector('[data-action="menu-toggle"]');
+        if (btn) btn.focus();
+        return;
+      }
+      if (document.body.classList.contains('panel-open')) { ev.preventDefault(); closePanel(); }
+      return;
+    }
+    if (list && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp')) {
+      ev.preventDefault();
+      const items = Array.from(list.querySelectorAll('[role^="menuitem"]'));
+      const i = items.indexOf(document.activeElement);
+      const next = items[(i + (ev.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+      if (next) next.focus();
+    }
+    // Keep keyboard focus inside an open panel.
+    if (ev.key === 'Tab' && document.body.classList.contains('panel-open')) {
+      const panel = document.querySelector('.panel');
+      const focusables = Array.from(panel.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select, textarea, summary, [tabindex="-1"]'))
+        .filter((el) => el.offsetParent !== null || el === document.activeElement);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!panel.contains(document.activeElement)) { ev.preventDefault(); first.focus(); }
+      else if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+      else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+    }
+  }
+
   // ---------- shared actions ----------
+
+  WH.actions['close-panel'] = () => closePanel();
 
   WH.actions['switch-profile'] = (a) => {
     a.user = null;
@@ -342,6 +443,7 @@
     document.addEventListener('submit', onSubmit);
     document.addEventListener('change', onChange);
     document.addEventListener('input', onInput);
+    document.addEventListener('keydown', onKeydown);
     window.addEventListener('hashchange', () => render({ focus: true }));
     // Keep tabs of the same browser in sync.
     window.addEventListener('storage', (e) => {

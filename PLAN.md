@@ -30,7 +30,7 @@ Code layout:
 
 1. **Rules first**: people and roles, permission checks, status transitions, task history, and capacity calculations (37.7 h week, 6 h social media reserve, meetings, events, weekly allocations, remaining effort, "Estimate needed").
 2. **Sample data**: fictional scenario with competing requests from Lina and Christine, an over-capacity week, a pending change proposal from Carla, a past resolved one, meeting requests, and work in progress. Dates are relative to the current week so the demo always looks current.
-3. **Screens**: welcome/profile selector, Maha / manager / Carla dashboards, shared workload (list + board + filters), calendar (month + week), task detail, request form, meeting requests, capacity, and priorities & decisions.
+3. **Screens**: welcome/profile selector; Home (Maha / manager / Carla); Tasks (this week, list, board, priorities panel); Calendar (month/week, meetings, events & leave); task details, request and meeting forms in a side panel. (Simplified navigation in a later update.)
 4. **Design**: warm cream background, serif headings, sans-serif body, thin dividers, restrained cards. Teal `#61B3B5` and green `#B4DAA4` as accents with navy `#162939` text. Status is shown with icons and words, not just colour.
 5. **Checks**: automated tests for rules; browser walk-through of the main flows, keyboard navigation, contrast and mobile layout.
 6. **Documentation**: launch instructions, what works, what is simulated, and what's needed for secure team use, document storage and Outlook (`README.md`, `docs/before-real-use.md`).

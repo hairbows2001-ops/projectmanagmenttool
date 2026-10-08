@@ -42,7 +42,7 @@
       actions += '<div class="btn-row" style="margin-top:10px"><button type="button" class="btn small" data-action="meeting-withdraw" data-id="' + esc(m.id) + '">' + (m.status === 'accepted' ? 'Cancel meeting' : 'Withdraw request') + '</button></div>';
     }
     const when = esc(D.fmtShort(m.date)) + ', ' + esc(D.fmtTime(m.start)) + ' · ' + m.durationMin + ' min';
-    return '<li><div class="row-line"><span class="row-title">' + esc(m.purpose) + '</span><span class="chips">' + statusChip(m) + ui.sampleChip(m) + '</span></div>' +
+    return '<li><div class="row-line"><span class="row-title">' + esc(m.purpose) + '</span><span class="chips">' + statusChip(m) + '</span></div>' +
       '<div class="row-meta"><span>' + esc(people.name(m.requesterId)) + '</span><span>' + (m.status === 'counter' ? '<s>' + when + '</s>' : when) + '</span>' +
       (m.location ? '<span>' + esc(m.location) + '</span>' : '') + (task ? '<span>Task: <a href="#/tasks/' + encodeURIComponent(task.id) + '">' + esc(task.title) + '</a></span>' : '') + '</div>' +
       (m.status === 'counter' ? '<div class="callout warn small" style="margin-top:8px"><p><strong>Maha proposed:</strong> ' + esc(D.fmtShort(m.counter.date)) + ', ' + esc(D.fmtTime(m.counter.start)) +
@@ -55,7 +55,8 @@
     return items.length ? '<ul class="rows">' + items.map((m) => meetingCard(app, m)).join('') + '</ul>' : '<p class="empty">' + esc(empty) + '</p>';
   }
 
-  WH.views.meetings = function (app) {
+  WH.calendarTabs = WH.calendarTabs || {};
+  WH.calendarTabs.meetings = function (app) {
     const s = app.state;
     const today = W.today();
     const sortAsc = (a, b) => (a.date + a.start < b.date + b.start ? -1 : 1);
@@ -63,17 +64,13 @@
     const counter = s.meetings.filter((m) => m.status === 'counter').sort(sortAsc);
     const upcoming = s.meetings.filter((m) => m.status === 'accepted' && m.date >= today).sort(sortAsc);
     const past = s.meetings.filter((m) => (m.status === 'accepted' && m.date < today) || m.status === 'declined' || m.status === 'withdrawn').sort((a, b) => -sortAsc(a, b));
-    const confirmedHours = upcoming.filter((m) => D.weekStart(m.date) === W.currentWeek()).reduce((t, m) => t + C.meetingHours(m), 0);
-    return '<div class="page-head"><div><p class="eyebrow">Internal calendar · not connected to Outlook</p><h1>Meetings</h1>' +
-      '<p>Confirmed meetings count toward Maha’s capacity (' + fmtHours(confirmedHours) + ' still to come this week). Pending requests do not, until accepted.</p></div>' +
-      (P.can(app.user, 'meeting.request') ? '<a class="btn primary" href="#/meetings/new">' + ui.icon('plus') + 'Request a meeting</a>' : '') + '</div>' +
-      '<div class="grid grid-2"><div class="stack">' +
-      '<section class="card ' + (pending.length ? 'attention' : '') + '" aria-labelledby="mp-h"><div class="card-head"><h2 id="mp-h">Waiting for Maha <span class="muted small">(' + pending.length + ')</span></h2></div>' + list(app, pending, 'No pending meeting requests.') + '</section>' +
-      '<section class="card" aria-labelledby="mc-h"><div class="card-head"><h2 id="mc-h">New time proposed <span class="muted small">(' + counter.length + ')</span></h2></div>' + list(app, counter, 'No counter-proposals waiting.') + '</section>' +
-      '</div><div class="stack">' +
-      '<section class="card accent" aria-labelledby="mu-h"><div class="card-head"><h2 id="mu-h">Confirmed and upcoming</h2></div>' + list(app, upcoming, 'No upcoming confirmed meetings.') + '</section>' +
-      '<section class="card" aria-labelledby="mpast-h"><div class="card-head"><h2 id="mpast-h">Past, declined and withdrawn</h2></div>' + list(app, past, 'Nothing here yet.') + '</section>' +
-      '</div></div>';
+    const sec = (id, title, items, empty) => '<section class="block" aria-labelledby="' + id + '"><div class="sec-head"><h2 id="' + id + '">' + title + '</h2><span class="muted small">' + items.length + '</span></div>' + list(app, items, empty) + '</section>';
+    return '<p class="small muted">Confirmed meetings count toward Maha’s capacity. Requests do not, until accepted.</p>' +
+      '<div class="grid grid-2">' +
+      '<div>' + sec('mp-h', 'Waiting for Maha', pending, 'No meeting requests waiting.') + (counter.length ? sec('mc-h', 'New time proposed', counter, '') : '') + '</div>' +
+      '<div>' + sec('mu-h', 'Confirmed and upcoming', upcoming, 'No upcoming meetings.') +
+      '<details class="psec" id="meet-past"><summary><span>Past, declined and withdrawn</span><span class="psec-count">' + past.length + '</span></summary><div class="psec-body">' + list(app, past, 'Nothing here yet.') + '</div></details></div>' +
+      '</div>';
   };
 
   const mid = (el) => el.getAttribute('data-id');

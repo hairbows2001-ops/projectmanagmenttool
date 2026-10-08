@@ -35,33 +35,31 @@ The server only accepts connections from your own computer, so nobody else on th
 
 ## 2. Try this walk-through
 
-The sample data is set up so you can act out the main scenario:
+The app has three sections: **Home**, **Tasks** and **Calendar**. Your name at the top right opens the profile menu (switch profile, about this prototype, reset sample data). Task details, forms and priorities open in a panel on the right (full screen on a phone); press **Esc** or **×** to close it.
 
-1. **Maha**: open the dashboard. This week is **2.3 h over capacity** because Lina's urgent gala sponsor posts were added. Christine's urgent flyer is also waiting, which would make it 7.5 h over.
-2. **Carla**: open *Priorities & decisions*. See the competing commitments, tick the work to move (for example, Christine's brochure), choose the new week, write a reason and **Propose these changes to Maha**. Nothing moves yet.
-3. **Maha**: open *Priorities & decisions*, check the dates and **Confirm these dates**. The schedule and agreed deadlines update, and each task's history records who did what and when.
-4. Next week there is already a pending proposal from Carla (Maha has a vacation day and an evening gala). Maha can confirm it, or decline it with a reason.
-5. **Christine** or **Lina**: *Request a task* (try submitting empty to see validation), attach a document, then *Request a meeting*.
-6. **Maha**: open the request, estimate it, schedule it, start work and **Mark complete**. There is no approval step. Answer the meeting request, or propose another time.
-7. **Maha**: on the dashboard, *Staff recognition week poster* shows "0 h left: ready to complete". Mark it complete in one click.
+1. **Maha**: Home shows *Today*, this week's capacity (**40 h planned / 37.7 h available, 2.3 h over capacity**) and *Needs attention*. Tick a task in Today to mark it complete, or use the ••• menu to remove it from Today.
+2. **Maha**: *View this week* (or Tasks → This week) lists everything scheduled this week. Use the ••• menu to add a task to Today.
+3. **Carla**: Tasks shows a slim line about over-capacity weeks. Choose **Review priorities**, tick the work to move (for example, Christine's brochure), pick a week, give a reason and **Propose changes to Maha**. Nothing moves yet.
+4. **Maha**: open the same Priorities panel and **Confirm these dates**. The schedule and deadlines update, with history.
+5. **Lina** or **Christine**: **Request a task**. Only a title is needed; add a brief, optional details and attachments now or later.
+6. **Maha**: open the request. The panel's top section shows the next step: estimate, then schedule, then **Start work**, then **Mark complete**. There is no approval step.
+7. **Calendar**: month and week views, *Meetings* (answer or propose another time) and *Events & leave* (add events, reduce a week's capacity for leave).
 
 ## 3. What works
 
 | Area | What you can do |
 | --- | --- |
-| Welcome | Demo profile selector with names and titles; personal greeting ("Welcome, Carla."). Clearly labelled as simulated access. |
-| Requests | Submit with required title, description and automatic requester; optional project, deliverable type, audience, purpose, requested date or "Date not known yet", deadline reason, externally fixed, urgency and why, materials, links, documents, missing info and notes. Edit your own brief later; add comments, links and documents. |
-| Maha's workspace | Today's plan, this week's capacity, new requests, clarification, work in progress, conflicts and decisions. Ask for clarification, estimate effort, schedule hours by week with an agreed deadline ("spread evenly" helper), start work, update remaining effort, flag/clear blocked, mark routine social posts as covered by the social media reserve, mark work Complete. |
-| Manager dashboards | Your requests and statuses, prominent "Request a task" and "Request a meeting", upcoming deadlines, things needing your input, Maha's four-week workload summary. |
-| Carla's dashboard | Everything managers see, plus priority conflicts, work in progress, recently completed work, proposed changes awaiting Maha, and open requests without a priority. Carla, as lead manager, sees all work and sets priorities. |
-| Priorities & decisions | Over-capacity weeks with the amount over, competing commitments, pending requests' potential impact. Carla selects work to move, a target week, an optional proposed deadline and a required reason. Maha confirms (can adjust dates) or declines with a reason. Pending changes stay visibly pending. |
-| Shared workload | List and board views; filter by requester, status, priority, project and deadline range. Each summary shows requester, title, status, priority, requested and agreed deadlines, and effort ("Estimate needed" when missing). |
-| Calendar | Month and week views; previous/next/today/jump to date. Agreed deadlines (solid), requested deadlines (dashed), proposed changes, confirmed meetings (solid teal) and pending meeting requests (striped, dashed) look different and are labelled in words. Weekly scheduled hours and capacity shown per week. |
-| Capacity | 37.7 h week, 6 h social media reserve (31.7 h left), meetings, events, scheduled tasks, remaining or over. Maha can reduce a week's capacity for leave (reason required, never above 37.7 h) and add events. Evening or weekend events use time but never add hours. |
-| Meetings | Managers propose purpose, date, time, duration, location/link and related task, with a live conflict check. Maha accepts, declines or proposes another time; the requester accepts the new time or withdraws. Accepted meetings count toward capacity. |
-| Workflow | Submitted → Needs clarification → Scheduled → In progress → Complete. All requests go directly to Maha; nothing needs approval. A complete request can go straight from Submitted to Scheduled. Maha marks work Complete. Blocked flag with a reason; cancel and archive (history kept). |
-| History | Every important action records who, what and when, on the task (and in a log for capacity, events and decisions). |
-| Saving | Changes survive a refresh. Tabs in the same browser stay in sync. |
+| Navigation | Three sections (Home, Tasks, Calendar); profile menu with switch profile, about and reset; a small "Demo workspace" label. Old links still work. |
+| Home (Maha) | Compact greeting; Today list with completion checkboxes and an accessible ••• menu; one-bar weekly capacity with "View breakdown"; Needs attention (new requests, clarification, estimates, meeting requests, schedule changes, conflicts, blocked work). One primary button: **Create task**. |
+| Home (managers) | Greeting; **Request a task** (primary) and **Request a meeting**; active requests with one status each; Maha's capacity summary; anything needing your input. Carla also sees conflicts, requests without a priority, and changes waiting for Maha. |
+| Tasks | This week, All tasks (list) and Board. Status and requester filters, with priority, project and dates under *More filters*. Rows show title, requester, due date, one status and priority only when it is Critical or High. |
+| Task details | Side panel (full screen on phones): next step first, then collapsible Brief, Schedule and effort, Documents and links, Comments, More actions, and Activity history. Sections stay open while you work in them. |
+| Requests | Essentials (title, short brief, requested deadline or "Not known yet"), optional details, and attachments. Only the title is required; edit the brief and add documents, links and comments later. |
+| Priorities | A panel within Tasks: changes waiting for Maha, the week's competing work, Carla's proposal form (move fields appear when a task is ticked) and earlier decisions. Carla proposes; Maha confirms the dates. |
+| Calendar | Month and week views with tasks, deadlines (requested vs agreed), meetings (pending vs confirmed) and events. *Meetings* and *Events & leave* tabs. |
+| Capacity | 37.7 h week, 6 h social media reserve, meetings, events and scheduled tasks; remaining or over. Unscheduled requests are shown separately. Maha can reduce a week's capacity for leave and add events. |
+| Workflow | Submitted → Needs clarification → Scheduled → In progress → Complete, plus Blocked, Cancelled and Archived. All requests go directly to Maha; Maha marks work Complete. |
+| History & saving | Every important action records who, what and when. Changes survive a refresh. |
 
 ### Capacity rules, in plain language
 
@@ -104,7 +102,8 @@ js/core/              The rules: dates, people, permissions, capacity, workflow,
                       and migrate.js (updates data saved by earlier versions)
 js/store.js           Saving in this browser (localStorage + IndexedDB for files)
 js/app.js             Navigation, saving after each change, error messages
-js/ui/                Screens
+js/ui/                Screens: home.js, tasks.js, task.js (detail panel), forms.js, decisions.js
+                      (priorities panel), calendar.js, meetings.js and capacity-view.js (Calendar tabs)
 tests/                Automated rule tests (npm test)
 serve.js              Optional local server (npm start)
 PLAN.md               The implementation plan

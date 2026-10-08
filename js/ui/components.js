@@ -63,10 +63,6 @@
       esc(W.URGENCY[task.requestedUrgency]) + '</span>';
   }
 
-  function sampleChip(item) {
-    return item && item.sample ? '<span class="chip sample" title="Fictional sample content">Fictional sample</span>' : '';
-  }
-
   function effortText(task) {
     if (!(task.estimateHours > 0)) return '<span class="chip estimate-needed">' + icon('alert') + 'Estimate needed</span>';
     const rem = C.remainingOf(task);
@@ -82,86 +78,6 @@
   function requestedDeadline(task) {
     if (!task.requestedDeadline) return '<span class="muted">Not known yet</span>';
     return esc(D.fmtShort(task.requestedDeadline)) + (task.deadlineFixed ? ' <span class="sub">Externally fixed</span>' : '');
-  }
-
-  function taskLink(task) {
-    return '<a href="#/tasks/' + encodeURIComponent(task.id) + '">' + esc(task.title) + '</a>';
-  }
-
-  /** The standard task summary table used in dashboards and the workload view. */
-  function taskTable(tasks, opts) {
-    const o = opts || {};
-    if (!tasks.length) return '<p class="empty">' + esc(o.empty || 'Nothing here right now.') + '</p>';
-    const rows = tasks.map((t) => '<tr>' +
-      '<td class="title-cell">' + taskLink(t) + '<span class="sub">' + esc(t.project || t.deliverableType || '') + '</span>' +
-        (t.sample ? '<span class="sub">Fictional sample</span>' : '') + '</td>' +
-      (o.hideRequester ? '' : '<td data-label="Requester">' + esc(people.name(t.requesterId)) + '</td>') +
-      '<td data-label="Status"><span class="chips">' + statusChip(t.status) + blockedChip(t) + '</span></td>' +
-      '<td data-label="Priority"><span class="chips">' + priorityChip(t) + urgencyChip(t) + '</span></td>' +
-      '<td data-label="Requested">' + requestedDeadline(t) + '</td>' +
-      '<td data-label="Agreed">' + dateOr(t.agreedDeadline, 'Not agreed') + '</td>' +
-      '<td data-label="Effort">' + effortText(t) + '</td>' +
-      '</tr>').join('');
-    return '<div class="table-wrap"><table class="tasks"><caption class="visually-hidden">' + esc(o.caption || 'Tasks') + '</caption><thead><tr>' +
-      '<th scope="col">Task</th>' + (o.hideRequester ? '' : '<th scope="col">Requester</th>') +
-      '<th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Requested deadline</th>' +
-      '<th scope="col">Agreed deadline</th><th scope="col">Estimated effort</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-  }
-
-  /** Compact list of tasks with one line of meta. */
-  function taskRows(tasks, opts) {
-    const o = opts || {};
-    if (!tasks.length) return '<p class="empty">' + esc(o.empty || 'Nothing here right now.') + '</p>';
-    return '<ul class="rows">' + tasks.map((t) => '<li><div class="row-line"><a class="row-title" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
-      esc(t.title) + '</a><span class="chips">' + statusChip(t.status) + blockedChip(t) + (o.showPriority ? priorityChip(t) : '') + '</span></div>' +
-      '<div class="row-meta"><span>' + esc(people.name(t.requesterId)) + '</span>' +
-      (o.extra ? '<span>' + o.extra(t) + '</span>' : '') + (t.sample ? '<span>Fictional sample</span>' : '') + '</div></li>').join('') + '</ul>';
-  }
-
-  /** Weekly capacity card: bar + numbers. */
-  function capacityCard(s, opts) {
-    const o = opts || {};
-    const cap = Math.max(s.capacity, 0.1);
-    const scale = Math.max(cap, s.committed);
-    const pct = (h) => Math.max(0, (h / scale) * 100).toFixed(2) + '%';
-    const meetEvents = s.meetingHours + s.eventHours;
-    const usedTasks = Math.min(s.taskHours, Math.max(0, cap - s.social - meetEvents));
-    const overflow = s.over;
-    const bar = '<div class="cap-bar" role="img" aria-label="' + esc(fmtHours(s.committed) + ' committed of ' + fmtHours(s.capacity)) + '">' +
-      '<span class="cap-social" style="width:' + pct(Math.min(s.social, cap)) + '"></span>' +
-      '<span class="cap-meet" style="width:' + pct(meetEvents) + '"></span>' +
-      '<span class="cap-task" style="width:' + pct(usedTasks) + '"></span>' +
-      (overflow > 0 ? '<span class="cap-over" style="width:' + pct(overflow) + '"></span>' : '') + '</div>';
-    const legend = '<ul class="cap-legend"><li><i class="cap-social"></i>Social media</li><li><i class="cap-meet"></i>Meetings &amp; events</li>' +
-      '<li><i class="cap-task"></i>Scheduled tasks</li>' + (overflow > 0 ? '<li><i class="cap-over"></i>Over capacity</li>' : '') + '</ul>';
-    const status = s.over > 0
-      ? '<p class="cap-status over">' + icon('alert').replace('<svg', '<svg width="22" height="22"') + ' ' + fmtHours(s.over) + ' over capacity</p>'
-      : '<p class="cap-status">' + fmtHours(s.remaining) + ' remaining</p>';
-    const numbers = '<dl class="facts cap-numbers">' +
-      '<div><dt>Weekly capacity' + (s.adjusted ? ' (adjusted: ' + esc(s.adjustReason) + ')' : '') + '</dt><dd>' + fmtHours(s.capacity) + '</dd></div>' +
-      '<div><dt>Social media allocation</dt><dd>− ' + fmtHours(s.social) + '</dd></div>' +
-      '<div><dt>Confirmed meetings</dt><dd>− ' + fmtHours(s.meetingHours) + '</dd></div>' +
-      '<div><dt>Events</dt><dd>− ' + fmtHours(s.eventHours) + '</dd></div>' +
-      '<div><dt>Scheduled tasks</dt><dd>− ' + fmtHours(s.taskHours) + '</dd></div>' +
-      '<div class="cap-total"><dt>' + (s.remaining < 0 ? 'Over capacity' : 'Remaining') + '</dt><dd class="' + (s.remaining < 0 ? 'over-text' : '') + '">' +
-        (s.remaining < 0 ? '+ ' + fmtHours(-s.remaining) : fmtHours(s.remaining)) + '</dd></div>' +
-      '</dl>';
-    const pending = (s.pendingHours > 0 || s.needsEstimate.length)
-      ? '<div class="callout ' + (s.potentialRemaining < 0 ? 'warn' : 'info') + ' small" style="margin-top:14px"><p><strong>Requested, not yet scheduled:</strong> ' +
-        fmtHours(s.pendingHours) + (s.needsEstimate.length ? ' + ' + s.needsEstimate.length + ' request' + (s.needsEstimate.length > 1 ? 's' : '') + ' with estimate needed' : '') +
-        '. If all were scheduled: ' + (s.potentialRemaining < 0 ? '<strong>' + fmtHours(-s.potentialRemaining) + ' over</strong>' : fmtHours(s.potentialRemaining) + ' remaining') + '.</p></div>'
-      : '';
-    const proposals = (s.proposedOut > 0 || s.proposedIn > 0)
-      ? '<div class="callout warn small"><p><strong>Pending change (not confirmed):</strong> ' +
-        (s.proposedOut ? fmtHours(s.proposedOut) + ' proposed to move out' : '') + (s.proposedOut && s.proposedIn ? ', ' : '') +
-        (s.proposedIn ? fmtHours(s.proposedIn) + ' proposed to move in' : '') +
-        '. If Maha confirms: ' + (s.remainingIfProposalsConfirmed < 0 ? fmtHours(-s.remainingIfProposalsConfirmed) + ' over' : fmtHours(s.remainingIfProposalsConfirmed) + ' remaining') + '.</p></div>'
-      : '';
-    return '<section class="card ' + (s.over > 0 ? 'alert' : 'accent') + '" aria-labelledby="cap-' + s.weekStart + '">' +
-      '<div class="card-head"><h2 id="cap-' + s.weekStart + '">' + esc(o.title || 'Weekly capacity') + '</h2>' +
-      '<span class="muted small">Week of ' + esc(D.fmtWeek(s.weekStart)) + '</span></div>' +
-      status + bar + legend + numbers + pending + proposals +
-      (o.link === false ? '' : '<p class="small" style="margin-top:12px"><a href="#/capacity">See all weeks</a></p>') + '</section>';
   }
 
   function personName(id) { return esc(people.name(id)); }
@@ -198,17 +114,89 @@
       (o.checked ? ' checked' : '') + '><span>' + esc(o.label) + (o.hint ? '<span class="hint">' + esc(o.hint) + '</span>' : '') + '</span></label></div>';
   }
 
-  function weekOptions(fromWeek, count, selected) {
-    const out = [];
-    for (let i = 0; i < count; i++) {
-      const w = D.addDays(fromWeek, i * 7);
-      out.push({ value: w, label: 'Week of ' + D.fmtWeek(w) });
-    }
-    return out.map((o) => '<option value="' + o.value + '"' + (o.value === selected ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('');
+  // ---------- compact rows (Home and Tasks) ----------
+
+  /** One status label: Blocked replaces the status when work is blocked. */
+  function statusLabel(task) {
+    return task.blocked ? blockedChip(task) : statusChip(task.status);
+  }
+
+  /** Priority only when it helps decide: Critical or High. */
+  function usefulPriority(task) {
+    return task.priority === 'P1' || task.priority === 'P2' ? priorityChip(task) : '';
+  }
+
+  function dueText(task) {
+    if (task.agreedDeadline) return 'Due ' + D.fmtShort(task.agreedDeadline);
+    if (task.requestedDeadline) return 'Requested for ' + D.fmtShort(task.requestedDeadline);
+    return 'No date yet';
+  }
+
+  /**
+   * Accessible action menu. items: [{ label, action, attrs }] where attrs is extra data-* text.
+   */
+  function actionMenu(label, items) {
+    if (!items.length) return '';
+    const id = 'm-' + Math.random().toString(36).slice(2, 9);
+    return '<div class="menu row-menu"><button type="button" class="icon-btn" data-action="menu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="' + id + '" aria-label="' + esc(label) + '">' +
+      '<span aria-hidden="true" class="dots">•••</span></button><div class="menu-list" id="' + id + '" role="menu" hidden>' +
+      items.map((it) => '<button type="button" role="menuitem" data-action="' + it.action + '" ' + (it.attrs || '') + '>' + esc(it.label) + '</button>').join('') + '</div></div>';
+  }
+
+  /**
+   * A compact task row: title, requester and due date, one status label, priority when useful.
+   * opts.meta: extra short text (e.g. "6 h this week"); opts.menu: actionMenu HTML; opts.lead: checkbox HTML.
+   */
+  function taskRow(task, opts) {
+    const o = opts || {};
+    return '<li class="trow' + (o.lead ? ' has-lead' : '') + '">' + (o.lead || '') +
+      '<div class="trow-main"><a class="trow-title" href="#/tasks/' + encodeURIComponent(task.id) + '">' + esc(task.title) + '</a>' +
+      '<span class="trow-meta">' + esc(people.name(task.requesterId)) + ' · ' + esc(dueText(task)) + (o.meta ? ' · ' + o.meta : '') + '</span></div>' +
+      '<div class="trow-side">' + usefulPriority(task) + statusLabel(task) + (o.menu || '') + '</div></li>';
+  }
+
+  function taskList(tasks, opts) {
+    const o = opts || {};
+    if (!tasks.length) return '<p class="empty">' + esc(o.empty || 'Nothing here right now.') + '</p>';
+    return '<ul class="tlist">' + tasks.map((t) => taskRow(t, o.rowOpts ? o.rowOpts(t) : {})).join('') + '</ul>';
+  }
+
+  // ---------- capacity summary (one bar) ----------
+
+  function capacitySummary(s, opts) {
+    const o = opts || {};
+    const cap = s.capacity;
+    const planned = s.committed;
+    const scale = Math.max(cap, planned, 0.1);
+    const fill = Math.min(planned, cap) / scale * 100;
+    const overW = Math.max(0, planned - cap) / scale * 100;
+    const status = s.over > 0
+      ? '<p class="cap-status over">' + icon('alert') + '<span>' + fmtHours(s.over) + ' over capacity</span></p>'
+      : '<p class="cap-status">' + fmtHours(s.remaining) + ' remaining</p>';
+    const pending = (s.pendingHours > 0 || s.needsEstimate.length)
+      ? '<p class="cap-note">Not yet scheduled: ' + fmtHours(s.pendingHours) + ' requested' +
+        (s.needsEstimate.length ? ' + ' + s.needsEstimate.length + ' needing an estimate' : '') + '</p>' : '';
+    const proposals = (s.proposedOut > 0 || s.proposedIn > 0)
+      ? '<p class="cap-note">Pending change: ' + (s.remainingIfProposalsConfirmed < 0 ? fmtHours(-s.remainingIfProposalsConfirmed) + ' over' : fmtHours(s.remainingIfProposalsConfirmed) + ' free') + ' if Maha confirms</p>' : '';
+    const breakdown = '<details class="breakdown" id="breakdown-' + s.weekStart + '"><summary>View breakdown</summary><dl class="facts cap-numbers">' +
+      '<div><dt>Weekly capacity' + (s.adjusted ? ' (' + esc(s.adjustReason) + ')' : '') + '</dt><dd>' + fmtHours(cap) + '</dd></div>' +
+      '<div><dt>Social media reserve</dt><dd>' + fmtHours(s.social) + '</dd></div>' +
+      '<div><dt>Confirmed meetings</dt><dd>' + fmtHours(s.meetingHours) + '</dd></div>' +
+      '<div><dt>Events</dt><dd>' + fmtHours(s.eventHours) + '</dd></div>' +
+      '<div><dt>Scheduled tasks</dt><dd>' + fmtHours(s.taskHours) + '</dd></div>' +
+      '<div class="cap-total"><dt>Planned</dt><dd>' + fmtHours(planned) + '</dd></div></dl>' +
+      '<p class="small muted">Requests not yet scheduled are not included in planned hours.</p></details>';
+    return '<section class="cap-summary' + (s.over > 0 ? ' is-over' : '') + '" aria-labelledby="cap-' + s.weekStart + '">' +
+      '<div class="sec-head"><h2 id="cap-' + s.weekStart + '">' + esc(o.title || 'This week') + '</h2><span class="muted small">' + esc(D.fmtWeek(s.weekStart)) + '</span></div>' +
+      '<div class="cap-bar" role="img" aria-label="' + esc(fmtHours(planned) + ' planned of ' + fmtHours(cap) + ' available') + '">' +
+      '<span class="cap-fill" style="width:' + fill.toFixed(1) + '%"></span>' + (overW ? '<span class="cap-over" style="width:' + overW.toFixed(1) + '%"></span>' : '') + '</div>' +
+      '<p class="cap-line"><strong>' + fmtHours(planned) + ' planned</strong> / ' + fmtHours(cap) + ' available</p>' +
+      status + pending + proposals + (o.noBreakdown ? '' : breakdown) + (o.footer || '') + '</section>';
   }
 
   WH.ui = {
-    icon, statusChip, blockedChip, priorityChip, urgencyChip, sampleChip, effortText, dateOr, requestedDeadline,
-    taskLink, taskTable, taskRows, capacityCard, historyList, field, checkbox, weekOptions, personName, STATUS_ICONS
+    icon, statusChip, blockedChip, priorityChip, urgencyChip, effortText, dateOr, requestedDeadline,
+    historyList, field, checkbox, personName, STATUS_ICONS,
+    statusLabel, usefulPriority, dueText, actionMenu, taskRow, taskList, capacitySummary
   };
 })(globalThis.WH = globalThis.WH || {});

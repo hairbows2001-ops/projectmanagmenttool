@@ -52,6 +52,7 @@ The sample data is set up so you can act out the main scenario:
    - "Approve" (with or without quoted history): the request is approved.
    - The same reply again: ignored as a duplicate.
    - "Unclear reply": stays pending.
+   - Carla's address in different capitals: accepted (addresses are compared without case sensitivity).
    - A different sender using the name "Carla Neto": rejected.
    - "Arrives after the expiry date": rejected.
    - Sheila's older email (version 1, outdated because she changed the deadline): rejected.
@@ -93,7 +94,7 @@ The sample data is set up so you can act out the main scenario:
 - **Data is local to one browser on one computer.** It is not shared with anyone. Clearing browser data erases it.
 - **Documents are stored in the browser only** (up to 10 MB each). They can be reopened on the same computer and browser, but nobody else can open them. Sample documents are names only, with no file.
 - **No Outlook connection.** The calendar is internal. Nothing is sent to or read from the Women's Habitat mail server.
-- **No email is sent or received.** Approval emails and decision notices are simulated records inside the browser, shown on the *Simulated email* page and in dashboard "Notices". Carla's email address is deliberately not set. The reply simulator stands in for Carla's mail program, and its "verified sender" option stands in for the email service's sender checks.
+- **No email is sent or received.** Approval emails and decision notices are simulated records inside the browser, shown on the *Simulated email* page and in dashboard "Notices". They are addressed to Carla's configured approval address, **CNeto@womens-habitat.ca** (set in `js/core/config.js`; replies are matched to it without regard to upper/lower case). Real sending and reply processing stay off until the email integration is set up. The reply simulator stands in for Carla's mail program, and its sender choices stand in for the email service's sender checks.
 - **Other notifications** (new request, clarification, meetings) are not sent; people see updates when they open the app.
 - **Time of day for tasks** isn't scheduled; effort is planned by week. Meetings and events have times.
 - The heading font (Cormorant Garamond) loads from Google Fonts when online; offline it falls back to Palatino/Georgia. This is the only outside request the page makes.

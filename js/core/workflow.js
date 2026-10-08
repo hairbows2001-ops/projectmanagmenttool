@@ -239,7 +239,7 @@
     const content = A.buildEmail(state, task, { version: task.requestApproval.version, token, expiresOn: D.todayISO(expires), currentWeek: currentWeek() });
     const email = {
       id: uid('eml'), kind: 'request_approval', simulated: true, taskId: task.id, toUserId: WH.config.requestApproval.approverId,
-      toAddress: WH.config.email.approverAddress, approvalVersion: task.requestApproval.version, token,
+      toAddress: A.approverAddress(), delivery: 'simulated', approvalVersion: task.requestApproval.version, token,
       subject: content.subject, body: content.body, sentAt, expiresAt: expires.toISOString(), status: 'awaiting_reply', sample: !!task.sample
     };
     state.emails.push(email);
@@ -336,11 +336,14 @@
     entry.taskId = email.taskId;
     entry.approvalVersion = email.approvalVersion;
 
-    // Sender check uses the authenticated sender, never the display name.
-    const expected = WH.config.email.approverAddress || SIMULATED_APPROVER;
-    if (entry.authenticatedSender !== expected) {
-      return finish('rejected_sender', 'The sender is not Carla’s configured address (display name "' + entry.displayName + '" is not trusted). Nothing changed.');
+    // Sender check: the authenticated sender address must match the configured approver
+    // (ignoring upper/lower case). The display name is never trusted.
+    const expected = A.approverAddress();
+    if (!expected) return finish('rejected_sender', 'No approver email address is configured, so email replies cannot be accepted. Nothing changed.');
+    if (!A.sameAddress(entry.authenticatedSender, expected)) {
+      return finish('rejected_sender', 'The sender (' + (entry.authenticatedSender || 'unknown') + ') is not Carla\u2019s configured address. The display name "' + entry.displayName + '" is not trusted. Nothing changed.');
     }
+    entry.verified = true;
     const task = state.tasks.find((t) => t.id === email.taskId);
     if (!task) return finish('unknown_reference', 'The request no longer exists. Nothing changed.');
 
@@ -368,8 +371,6 @@
     return finish('applied', 'Recorded: request ' + (parsed.decision === 'approve' ? 'approved' : 'declined') + ' (version ' + email.approvalVersion + ').', { decision: parsed.decision });
   }
 
-  // Stand-in for "Carla's configured address" in the prototype, which has no real address.
-  const SIMULATED_APPROVER = 'simulated:carla-configured-address';
 
   const BRIEF_LABELS = {
     title: 'Title', description: 'Description', project: 'Project or campaign', deliverableType: 'Deliverable type',
@@ -950,7 +951,7 @@
     requestMeeting, respondMeeting, acceptCounter, withdrawMeeting, meetingConflicts,
     setCapacity, clearCapacity, addEvent, removeEvent,
     decideRequest, resendApprovalEmail, processEmailReply, emailStatus, createApprovalEmail, ensureApprovalState,
-    SIMULATED_APPROVER, CHANNEL_LABELS,
+    CHANNEL_LABELS,
     PermissionError, ValidationError
   };
 })(globalThis.WH = globalThis.WH || {});

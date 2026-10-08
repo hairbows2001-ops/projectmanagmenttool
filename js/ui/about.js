@@ -17,7 +17,8 @@
       '<section class="card"><h2>Calendar and Outlook</h2><p>The calendar is internal to this app. It is <strong>not connected to Outlook</strong>, and nothing is sent to or read from the Women’s Habitat mail server. ' +
       'A later integration depends on how IT has set up Outlook (see <code>docs/before-real-use.md</code>).</p></section>' +
       '<section class="card attention"><h2>Approval emails</h2><p>Request approval emails to Carla are <strong>simulated</strong>. They are created as records in this browser and shown on the <a href="#/email">Simulated email</a> page. ' +
-      '<strong>No email is sent or received</strong>, and Carla\u2019s address is not configured. A simulation tool stands in for Carla replying \u201capprove\u201d or \u201cdecline\u201d.</p></section>' +
+      '<strong>No email is sent or received.</strong> They are addressed to Carla\u2019s configured approval address (' + WH.util.esc(WH.approval.approverAddress() || 'not configured') + '). ' +
+      'Real sending and reply processing turn on only once the email integration is configured. A simulation tool stands in for Carla replying \u201capprove\u201d or \u201cdecline\u201d.</p></section>' +
       '<section class="card"><h2>Sample content</h2><p>All tasks, meetings, events, comments and dates are <strong>fictional</strong>. They are there to demonstrate competing requests from Lina and Christine, a week over capacity, and Carla resolving it. Names and titles are used only to show the roles.</p></section>' +
       '<section class="card"><h2>Rules used</h2><ul class="small">' +
       '<li>Weekly capacity is 37.7 h; 6 h is reserved for social media, leaving 31.7 h.</li>' +

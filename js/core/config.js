@@ -16,11 +16,16 @@
       replyExpiryDays: 7
     },
     email: {
-      // NOT SET ON PURPOSE. Carla's real address must be confirmed and entered by an administrator
-      // in the production system. The prototype never sends or receives email.
-      approverAddress: null,
+      // Recipient of request-approval emails AND the only address allowed to approve or decline by
+      // email reply. Compared without regard to upper/lower case. In production this belongs in the
+      // server's settings, changeable by an administrator.
+      approverAddress: 'CNeto@womens-habitat.ca',
       // Base web address for task links in emails, once the app is hosted. Unknown for now.
-      appBaseUrl: null
+      appBaseUrl: null,
+      // Real sending and reply processing. OFF: the prototype only creates simulated email records.
+      // Turning this on has no effect until the server-side email integration exists
+      // (see docs/before-real-use.md); the prototype will say so rather than pretend to send.
+      integration: { enabled: false, provider: null }
     }
   };
 })(globalThis.WH = globalThis.WH || {});

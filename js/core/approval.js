@@ -47,6 +47,28 @@
     return !ra || ra.status === 'not_required' || ra.status === 'approved';
   }
 
+  // ---------- addresses and delivery ----------
+
+  function normalizeAddress(a) { return String(a || '').trim().toLowerCase(); }
+
+  /** True when both addresses are set and equal, ignoring upper/lower case and surrounding spaces. */
+  function sameAddress(a, b) {
+    const x = normalizeAddress(a);
+    return x !== '' && x === normalizeAddress(b);
+  }
+
+  function approverAddress() { return WH.config.email.approverAddress || null; }
+
+  /**
+   * 'simulated': integration off (the prototype default).
+   * 'integration_unavailable': switched on in settings, but this browser prototype has no email
+   * integration, so emails are still only simulated.
+   */
+  function deliveryMode() {
+    const integ = WH.config.email.integration || {};
+    return integ.enabled ? 'integration_unavailable' : 'simulated';
+  }
+
   // ---------- reading replies ----------
 
   const QUOTE_START = [
@@ -158,6 +180,7 @@
 
   WH.approval = {
     REQUEST_APPROVAL, MATERIAL_FIELDS, requiresApproval, ruleText, canSchedule,
+    normalizeAddress, sameAddress, approverAddress, deliveryMode,
     newReplyText, parseDecision, capacityNotes, buildEmail
   };
 })(globalThis.WH = globalThis.WH || {});

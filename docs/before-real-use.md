@@ -50,7 +50,9 @@ Until then, the internal calendar is the source of truth for scheduling in this 
 
 ## 4. Email approval for Carla
 
-**Today (prototype):** request approval works in the app. Approval emails and decision notices are **simulated**: they are records in the browser, nothing is sent, and Carla's address is not configured. A simulation tool plays the part of Carla replying and of the email service verifying her address.
+**Today (prototype):** request approval works in the app. Approval emails and decision notices are **simulated**: they are records in the browser, and nothing is sent. They are addressed to Carla's configured approval address, **CNeto@womens-habitat.ca**, which is also the only address allowed to approve or decline by reply (compared without regard to upper/lower case). A simulation tool plays the part of Carla replying and of the email service verifying her address.
+
+**Where the address is set:** `js/core/config.js` (`email.approverAddress`) in the prototype. In production it must live in the server's settings, changeable only by an administrator, and every change should be recorded. Real sending is controlled by `email.integration.enabled`, which is off. Switching it on in the prototype does not send anything; the app says the integration is unavailable.
 
 The rules the prototype already follows, which the real version must keep:
 
@@ -68,7 +70,7 @@ The rules the prototype already follows, which the real version must keep:
 
 1. **The secure server from section 1.** Email approval must be processed on a server that holds the real data, not in a browser.
 2. **An approved email service that can receive replies.** Options include an organisation-approved transactional email provider with inbound email processing, or Microsoft 365 / Exchange (if that is what Women's Habitat uses) through an approved integration. **Do not assume the current Outlook server supports this.** IT must confirm it.
-3. **Carla's confirmed email address**, entered by an administrator in the server's settings (never in the app's code, and never guessed).
+3. **Carla's approval address in the server's settings.** The address is CNeto@womens-habitat.ca. In production it moves out of the app's code into server settings that only an administrator can change.
 4. **Sender verification using authenticated information.** The server checks that the reply really came from Carla's configured address, using the email service's verified sender data (for example SPF, DKIM and DMARC results), not the displayed "From" name.
 5. **A verified inbound webhook.** When the email service forwards a reply to the app, the app checks the service's signature, so nobody can post a fake "approve".
 6. **Unique, expiring reply identifiers.** Generate a random, single-use reference for each email (for example in a reply-to address such as `approvals+<reference>@…`). Store only a hashed copy, link it to one request and one version, and reject it after it expires or is superseded.
@@ -83,7 +85,8 @@ The rules the prototype already follows, which the real version must keep:
 - Can it receive replies, either through a dedicated mailbox the app may read or by forwarding to an approved email service? Is this allowed by our policies?
 - Are SPF, DKIM and DMARC set up for our domain, so the app can trust that a reply came from Carla?
 - Which email service or integration is approved, and where may it store data?
-- What is Carla's correct address for approvals, and who may change it?
+- Can CNeto@womens-habitat.ca receive automated messages from the app (no filtering to junk), and do Carla's replies keep the reply-to address?
+- Who may change the approver address in future (for example, when someone covers for Carla)?
 
 ## 5. Other items before launch
 

@@ -11,6 +11,7 @@
   const W = WH.workflow;
   const ui = WH.ui;
   const people = WH.people;
+  const A = WH.approval;
 
   const EMAIL_STATUS = { awaiting_reply: 'Awaiting reply', decided: 'Decision received', decided_in_app: 'Decided in the app', superseded: 'Outdated (request changed)', expired: 'Expired' };
   const OUTCOMES = {
@@ -31,6 +32,13 @@
     unclear: 'Looks OK but let me check with Lina first.'
   };
 
+  // Reserved test domain: never a real mailbox.
+  const SPOOF_ADDRESS = 'someone.else@example.invalid';
+  function caseVariant(addr) {
+    const a = String(addr || '');
+    return a === a.toLowerCase() ? a.toUpperCase() : a.toLowerCase();
+  }
+
   function simulator(app, e) {
     const late = W.emailStatus(e) === 'awaiting_reply';
     return '<details class="action"><summary>Simulate Carla’s reply to this email</summary><div class="action-body">' +
@@ -41,8 +49,9 @@
         ({ approve: '“Approve”', decline: '“Decline” + reason', quoted: 'Approve with quoted history', unclear: 'Unclear reply' })[k] + '</button>').join('') + '</div>' +
       ui.field({ name: 'body', label: 'Reply text', type: 'textarea', rows: 5, value: 'Approve', id: 'sim-body-' + e.id }) +
       '<fieldset style="padding-top:8px"><legend class="label" style="font-family:var(--sans);font-size:0.9rem">Sender</legend>' +
-      '<label class="check"><input type="radio" name="sender" value="carla" checked><span>Carla’s configured address (verified by the email service)</span></label>' +
-      '<label class="check"><input type="radio" name="sender" value="spoof"><span>A different address using the display name “Carla Neto”</span></label></fieldset>' +
+      '<label class="check"><input type="radio" name="sender" value="carla" checked><span>' + esc(A.approverAddress() || 'No approver address configured') + ' (verified by the email service)</span></label>' +
+      '<label class="check"><input type="radio" name="sender" value="carla-case"><span>' + esc(caseVariant(A.approverAddress())) + ' (same address, different capitals)</span></label>' +
+      '<label class="check"><input type="radio" name="sender" value="spoof"><span>' + esc(SPOOF_ADDRESS) + ' using the display name \u201cCarla Neto\u201d</span></label></fieldset>' +
       (late ? ui.checkbox({ name: 'late', label: 'Arrives after the expiry date (' + D.fmtStamp(e.expiresAt) + ')', id: 'sim-late-' + e.id }) : '') +
       '<button type="submit" class="btn small primary">Process simulated reply</button></form></div></details>';
   }
@@ -53,7 +62,7 @@
     const open = app.ui.openEmail === e.id;
     return '<article class="email-sim" id="email-' + esc(e.id) + '" style="margin-bottom:16px">' +
       '<dl class="email-head"><dt>Status</dt><dd><span class="chip ' + (st === 'awaiting_reply' ? 'pending' : st === 'decided' ? 's-complete' : 's-cancelled') + '">' + esc(EMAIL_STATUS[st]) + '</span> <span class="sim-label">Simulated · not sent</span></dd>' +
-      '<dt>To</dt><dd>Carla Neto &lt;' + (e.toAddress ? esc(e.toAddress) : '<em>address not configured</em>') + '&gt;</dd>' +
+      '<dt>To</dt><dd>Carla Neto &lt;' + ((e.toAddress || A.approverAddress()) ? esc(e.toAddress || A.approverAddress()) : '<em>address not configured</em>') + '&gt;</dd>' +
       '<dt>Subject</dt><dd><strong>' + esc(e.subject) + '</strong></dd>' +
       '<dt>Request</dt><dd>' + (task ? '<a href="#/tasks/' + encodeURIComponent(task.id) + '">' + esc(task.title) + '</a> · ' + ui.requestApprovalChip(task, true) : 'Removed') + '</dd>' +
       '<dt>Version</dt><dd>' + e.approvalVersion + (task && task.briefVersion !== e.approvalVersion ? ' <span class="muted">(request is now version ' + task.briefVersion + ')</span>' : '') + '</dd>' +
@@ -74,9 +83,10 @@
 
     return '<div class="page-head"><div><p class="eyebrow">Prototype simulation</p><h1>Simulated email</h1>' +
       '<p>What the real system would send to Carla for request approvals, and how her replies would be handled.</p></div></div>' +
-      '<div class="callout warn"><p><strong>No email is sent or received.</strong> Carla’s address is not configured, and this prototype is not connected to the Women’s Habitat mail server. ' +
-      'The messages below are records created inside this browser. Use “Simulate Carla’s reply” to test how replies would be handled. ' +
-      'See <code>docs/before-real-use.md</code> for what IT needs to confirm.</p></div>' +
+      '<div class="callout warn"><p><strong>No email is sent or received.</strong> Approval emails go to Carla\u2019s configured address, <strong>' + esc(A.approverAddress() || 'not configured') + '</strong>, ' +
+      'but in this prototype they are only records inside this browser. Real sending and reply processing turn on once the email integration is set up (see <code>docs/before-real-use.md</code>). ' +
+      'Use \u201cSimulate Carla\u2019s reply\u201d to test how replies would be handled.' +
+      (A.deliveryMode() === 'integration_unavailable' ? ' <strong>Note:</strong> real delivery is switched on in settings, but this prototype has no email integration, so emails are still simulated.' : '') + '</p></div>' +
       '<div class="grid grid-main"><div>' +
       '<h2>Waiting for Carla’s reply <span class="muted small">(' + awaiting.length + ')</span></h2>' +
       (awaiting.length ? awaiting.map((e) => emailCard(app, e)).join('') : '<p class="empty">No approval emails are waiting for a reply.</p>') +
@@ -90,7 +100,7 @@
         const task = s.tasks.find((t) => t.id === r.taskId);
         return '<li><div class="row-line"><span class="outcome outcome-' + o[1] + '">' + esc(o[0]) + '</span><span class="small muted">' + esc(D.fmtStamp(r.at)) + '</span></div>' +
           '<div class="row-meta"><span>' + (task ? esc(task.title) : 'Unknown request') + '</span>' + (r.approvalVersion ? '<span>Email version ' + r.approvalVersion + '</span>' : '') +
-          '<span>From “' + esc(r.displayName || '') + '”' + (r.authenticatedSender === W.SIMULATED_APPROVER ? ' (verified)' : ' (not verified)') + '</span></div>' +
+          '<span>From “' + esc(r.displayName || '') + '”' + ' \u00b7 ' + esc(r.authenticatedSender || 'unknown address') + (r.verified ? ' (verified)' : ' (not accepted)') + '</span></div>' +
           '<p class="small" style="margin:4px 0 0">' + esc(r.message) + '</p></li>';
       }).join('') + '</ul>' : '<p class="empty">No replies processed yet.</p>') + '</section>' +
       '<section class="card" aria-labelledby="ntc-h"><div class="card-head"><h2 id="ntc-h">Decision notices</h2></div>' +
@@ -116,7 +126,7 @@
       if (d.late && email) W.setClock(() => new Date(new Date(email.expiresAt).getTime() + 3600000));
       result = W.processEmailReply(app.state, {
         token,
-        authenticatedSender: d.sender === 'carla' ? W.SIMULATED_APPROVER : 'unverified:someone-else',
+        authenticatedSender: d.sender === 'carla' ? A.approverAddress() : d.sender === 'carla-case' ? caseVariant(A.approverAddress()) : SPOOF_ADDRESS,
         displayName: 'Carla Neto',
         body: d.body
       });

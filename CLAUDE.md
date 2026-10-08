@@ -13,4 +13,5 @@
   "Estimate needed" never counted as zero, pending requests shown separately.
 - Request approval (js/core/approval.js + workflow.js) is separate from completed-work approval (`task.approval`).
   Exempt requesters live in js/core/config.js. Emails are SIMULATED records (`state.emails`, `state.inbound`,
-  `state.notifications`); never claim real email is sent. Carla's address is intentionally null.
+  `state.notifications`); never claim real email is sent. Approver address is configured in js/core/config.js (CNeto@womens-habitat.ca),
+  compared case-insensitively; `email.integration.enabled` stays false until a real server integration exists.

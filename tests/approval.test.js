@@ -8,7 +8,7 @@ const A = WH.approval;
 const NOW = new Date('2026-10-07T14:00:00Z'); // Wed, Oct 7, 2026, 10 a.m. Toronto
 W.setClock(() => NOW);
 const W0 = '2026-10-05';
-const CARLA = W.SIMULATED_APPROVER;
+const CARLA = WH.config.email.approverAddress;
 
 function emptyState() {
   return { schemaVersion: 2, tasks: [], meetings: [], events: [], capacity: {}, proposals: [], log: [], emails: [], notifications: [], inbound: [] };
@@ -233,11 +233,67 @@ test('request approval is separate from completed-work approval', () => {
   assert.equal(l.status, 'complete');
 });
 
-test('approval email contains the required content and no invented address', () => {
+test('Carla\u2019s configured address receives approval emails and is matched without case sensitivity', () => {
+  assert.equal(CARLA, 'CNeto@womens-habitat.ca');
+  for (const variant of ['cneto@womens-habitat.ca', 'CNETO@WOMENS-HABITAT.CA', '  CNeto@Womens-Habitat.ca ']) {
+    const st = emptyState();
+    const t = W.createTask(st, 'christine', brief());
+    assert.equal(emailsFor(st, t)[0].toAddress, 'CNeto@womens-habitat.ca');
+    assert.equal(reply(st, emailsFor(st, t)[0], 'approve', variant).outcome, 'applied', variant);
+  }
+  // Look-alike addresses are rejected
+  for (const other of ['cneto@womens-habitat.com', 'c.neto@womens-habitat.ca', 'cneto@womens-habitat.ca.example.invalid', '']) {
+    const st = emptyState();
+    const t = W.createTask(st, 'christine', brief());
+    const r = W.processEmailReply(st, { token: emailsFor(st, t)[0].token, authenticatedSender: other, displayName: 'Carla Neto', body: 'approve' });
+    assert.equal(r.outcome, 'rejected_sender', other);
+    assert.equal(t.requestApproval.status, 'pending');
+  }
+});
+
+test('the approver address is configurable; with none configured, email replies are refused', () => {
+  const saved = WH.config.email.approverAddress;
+  try {
+    WH.config.email.approverAddress = 'Approvals.Test@example.invalid';
+    let st = emptyState();
+    let t = W.createTask(st, 'christine', brief());
+    assert.equal(emailsFor(st, t)[0].toAddress, 'Approvals.Test@example.invalid');
+    assert.equal(reply(st, emailsFor(st, t)[0], 'approve', saved).outcome, 'rejected_sender'); // old address no longer authorized
+    assert.equal(reply(st, emailsFor(st, t)[0], 'approve', 'approvals.test@EXAMPLE.invalid').outcome, 'applied');
+
+    WH.config.email.approverAddress = null;
+    st = emptyState();
+    t = W.createTask(st, 'christine', brief());
+    const r = reply(st, emailsFor(st, t)[0], 'approve', saved);
+    assert.equal(r.outcome, 'rejected_sender');
+    assert.match(r.message, /No approver email address is configured/);
+    W.decideRequest(st, 'carla', t.id, 'approve'); // in-app approval still works
+    assert.equal(t.requestApproval.status, 'approved');
+  } finally {
+    WH.config.email.approverAddress = saved;
+  }
+});
+
+test('emails stay simulated unless a real integration exists', () => {
+  assert.equal(WH.config.email.integration.enabled, false);
+  assert.equal(A.deliveryMode(), 'simulated');
+  const st = emptyState();
+  const t = W.createTask(st, 'christine', brief());
+  assert.equal(emailsFor(st, t)[0].simulated, true);
+  assert.equal(emailsFor(st, t)[0].delivery, 'simulated');
+  WH.config.email.integration.enabled = true;
+  try {
+    assert.equal(A.deliveryMode(), 'integration_unavailable'); // never claims to send from the prototype
+  } finally {
+    WH.config.email.integration.enabled = false;
+  }
+});
+
+test('approval email contains the required content', () => {
   const st = emptyState();
   const t = W.createTask(st, 'christine', brief({ requestedUrgency: 'urgent', urgencyReason: 'Event Thursday' }));
   const e = emailsFor(st, t)[0];
-  assert.equal(e.toAddress, null);
+  assert.equal(e.toAddress, 'CNeto@womens-habitat.ca');
   assert.equal(e.simulated, true);
   ['Christine Boeck', 'Poster', 'A poster', '#/tasks/' + t.id, 'Requested deadline', 'Event Thursday', 'Estimate pending', 'Capacity', 'APPROVE or DECLINE', e.token]
     .forEach((needle) => assert.ok(e.body.includes(needle), needle));

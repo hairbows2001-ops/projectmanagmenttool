@@ -28,4 +28,8 @@
   for Carla: Maha finishes it, requests approval, Carla approves (closed) or requests changes. Carla sets priorities and proposes
   schedule changes; Maha confirms dates. Saved data from older versions is upgraded by js/core/migrate.js (schemaVersion 4);
   bump the version and add a migration step when the saved data shape changes (the server runs it on start too).
+- Browsers: Edge and Chrome on Windows (Carla, Lina), Safari and Chrome on Mac. Managers need only the link and their sign-in.
+  Only Chromium has actually been tested. Keep to features in Safari 15.5+ (js/start.js shows an "update your browser"
+  message otherwise), parse only ISO dates, and let the server name downloads. Record tested vs unverified in
+  docs/browser-support.md; give user instructions separately for Windows (Command Prompt) and Mac (Terminal).
 - Tests: `npm test` (rules + tests/server.test.js). Browser checks live outside the repo (Playwright, two sessions).

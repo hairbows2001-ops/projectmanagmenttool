@@ -14,6 +14,8 @@ This project contains two separate versions of the same app:
 
 They never share data. To keep tasks you made in the demo, export them from the demo and import them in the team workspace (Maha, under *Workspace settings*).
 
+- **For managers (Windows and Mac, browser only):** [docs/manager-guide.md](docs/manager-guide.md)
+- **Browsers tested and still to check:** [docs/browser-support.md](docs/browser-support.md)
 - **Setting up the pilot:** [docs/pilot-setup.md](docs/pilot-setup.md) (hosting choice, first accounts, checklist before inviting anyone)
 - **Hosting options, accounts and costs:** [docs/hosting.md](docs/hosting.md)
 - **Backups and recovery:** [docs/backup-and-recovery.md](docs/backup-and-recovery.md)
@@ -39,12 +41,15 @@ You don't need to install anything to look at it.
 Some browsers restrict saving files when a page is opened by double-clicking. If uploads don't work, use this:
 
 1. Install [Node.js](https://nodejs.org) (the "LTS" version) if it isn't installed.
-2. Open a terminal in this folder and run:
+2. Open the folder in a command window:
+   - **Windows:** press the Windows key, type `cmd`, press Enter. Type `cd /d ` (with a space), drag the unzipped folder into the window, and press Enter. (Unzip first: right-click the ZIP → Extract All.)
+   - **Mac:** open Terminal, type `cd ` (with a space), drag the folder into the window, and press Return.
+3. Run:
    ```
    npm run demo
    ```
-3. Open <http://localhost:8080> in your browser.
-4. Press `Ctrl+C` in the terminal to stop.
+4. Open <http://localhost:8080> in Edge, Chrome or Safari.
+5. Press `Ctrl+C` in the command window to stop.
 
 The server only accepts connections from your own computer, so nobody else on the network can open it.
 
@@ -150,5 +155,6 @@ tests/                Automated tests (npm test)
 serve.js              Demo server (npm run demo)
 Dockerfile, fly.toml  Hosting settings (not deployed)
 PLAN.md               The implementation plan
-docs/                 hosting.md, pilot-setup.md, backup-and-recovery.md, before-real-use.md
+docs/                 manager-guide.md, browser-support.md, hosting.md, pilot-setup.md,
+                      backup-and-recovery.md, before-real-use.md
 ```

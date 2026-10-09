@@ -30,7 +30,7 @@ function client(app) {
       const set = res.headers.get('set-cookie');
       if (set) cookie = set.split(';')[0];
       const type = res.headers.get('content-type') || '';
-      const data = type.includes('json') ? await res.json() : Buffer.from(await res.arrayBuffer());
+      const data = method === 'HEAD' ? null : type.includes('json') ? await res.json() : Buffer.from(await res.arrayBuffer());
       if (data && data.rev !== undefined) c.rev = data.rev;
       if (data && data.state) c.state = data.state;
       return { status: res.status, data };
@@ -38,6 +38,7 @@ function client(app) {
     async join(token, email) {
       return c.call('POST', '/api/join', { token, email, password: 'a long enough password', confirm: 'a long enough password' });
     },
+    cookie() { return cookie; },
     run(op, ...args) { return c.call('POST', '/api/commands', { base: c.rev, commands: [{ op, args, ids: [] }] }); },
     task(title) { return c.state.tasks.find((t) => t.title === title); }
   };
@@ -193,6 +194,11 @@ test('private documents: only the requester, Maha and Carla can open them; other
       assert.equal(r.data.toString(), 'secret notes');
     }
     assert.equal((await christine.call('GET', '/api/files/' + docId)).status, 403);
+    // The quick access check the browser makes before downloading.
+    assert.equal((await lina.call('HEAD', '/api/files/' + docId)).status, 200);
+    assert.equal((await christine.call('HEAD', '/api/files/' + docId)).status, 403);
+    const named = await fetch(app.base + '/api/files/' + docId, { headers: { Cookie: lina.cookie() } });
+    assert.match(named.headers.get('content-disposition'), /^attachment; filename="notes.txt"; filename\*=UTF-8''notes.txt$/);
     assert.equal((await client(app).call('GET', '/api/files/' + docId)).status, 401);
     assert.equal((await christine.call('GET', '/api/files/doc-000000000000000000')).status, 404);
 
@@ -202,6 +208,10 @@ test('private documents: only the requester, Maha and Carla can open them; other
     assert.equal(seen.documents.length, 0);
     assert.equal(seen.description, undefined);
     assert.equal(seen.status, 'submitted');
+
+    const accented = await lina.call('POST', '/api/files?task=' + t.id + '&base=' + lina.rev, Buffer.from('é'), { 'X-File-Name': encodeURIComponent('Résumé – v2.pdf'), 'Content-Type': 'application/pdf' });
+    const res2 = await fetch(app.base + '/api/files/' + accented.data.doc.id, { headers: { Cookie: lina.cookie() } });
+    assert.match(res2.headers.get('content-disposition'), /filename\*=UTF-8''R%C3%A9sum%C3%A9%20%E2%80%93%20v2\.pdf/, 'accented names survive for Windows and Mac');
 
     const big = await lina.call('POST', '/api/files?task=' + t.id + '&base=' + lina.rev, Buffer.alloc(10 * 1024 * 1024 + 10), { 'X-File-Name': 'big.bin' });
     assert.equal(big.status, 413);

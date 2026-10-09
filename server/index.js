@@ -219,15 +219,16 @@ function createApp(cfg) {
     }
 
     const fileMatch = p.match(/^\/api\/files\/([\w-]+)$/);
-    if (fileMatch && m === 'GET') {
+    if (fileMatch && (m === 'GET' || m === 'HEAD')) {
       const u = requireUser(req);
       const f = ws.fileFor(u, fileMatch[1]);
-      const data = fs.readFileSync(f.path);
+      // HEAD: the browser checks access before downloading (no file data sent).
+      const data = m === 'HEAD' ? null : fs.readFileSync(f.path);
       const ascii = f.name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
       return send(res, 200, data, {
         'Content-Type': f.type || 'application/octet-stream',
         'Content-Disposition': 'attachment; filename="' + ascii + '"; filename*=UTF-8\'\'' + encodeURIComponent(f.name),
-        'Content-Length': data.length, 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "sandbox; default-src 'none'"
+        'Content-Length': f.size, 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "sandbox; default-src 'none'"
       });
     }
 

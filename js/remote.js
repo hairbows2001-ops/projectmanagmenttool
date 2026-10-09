@@ -199,11 +199,26 @@
     return acc;
   }
 
+  /**
+   * Downloads a document. The server sends it as an attachment with its original name, which is the
+   * most reliable way across Edge, Chrome and Safari. A quick check first turns "no access" into a
+   * message instead of a downloaded error page.
+   */
   function download(app, id, name) {
-    return fetch('/api/files/' + encodeURIComponent(id), { credentials: 'same-origin' }).then((res) => {
-      if (!res.ok) return res.json().catch(() => ({})).then((d) => { throw new Error(d.message || 'Could not open the file.'); });
-      return res.blob();
-    }).then((blob) => saveBlob(blob, name)).catch((e) => app.toast(e.message, 'error'));
+    const url = '/api/files/' + encodeURIComponent(id);
+    return fetch(url, { method: 'HEAD', credentials: 'same-origin', cache: 'no-store' }).then((res) => {
+      if (res.status === 401) throw new SignInError('Please sign in again.');
+      if (!res.ok) throw new Error(res.status === 403 ? 'You do not have access to this file.' : res.status === 404 ? 'This file could not be found.' : 'Could not open the file.');
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name || '';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }).catch((e) => {
+      if (e instanceof SignInError) app.signedOut(e.message);
+      else app.toast(e.message === 'Failed to fetch' ? 'Could not reach the workspace server.' : e.message, 'error');
+    });
   }
 
   function saveBlob(blob, name) {

@@ -48,11 +48,12 @@ If the file is not a valid backup, nothing is replaced: it is renamed `restore-f
 
 ### On a computer where you can run commands
 
-Stop the app, then:
+Stop the app, then in Command Prompt (Windows) or Terminal (Mac), in the project folder:
 ```
 npm run admin -- restore path/to/workspace-backup-….tar
 npm start
 ```
+(On Windows the path looks like `"%USERPROFILE%\Downloads\workspace-backup-….tar"`.)
 
 ### Moving to a different host
 
@@ -62,10 +63,25 @@ Set up the new host (see `pilot-setup.md`), restore the latest backup there usin
 
 Before the pilot starts, test that a backup actually restores:
 
-1. Download a full backup.
-2. On your Mac, in the project folder: `DATA_DIR=./restore-test npm run admin -- restore ~/Downloads/workspace-backup-….tar`
-3. `DATA_DIR=./restore-test PORT=8081 npm start`, open <http://localhost:8081> and sign in with your normal email and password. You should see the same tasks and be able to open documents.
-4. Stop it (`Ctrl+C`) and delete the `restore-test` folder (it contains real data).
+1. Download a full backup (it goes to your Downloads folder).
+2. Open the project folder in Command Prompt (Windows) or Terminal (Mac), as in step 1 of `pilot-setup.md`. Node.js must be installed.
+3. Restore it into a separate test folder and start it there. Replace the file name with yours.
+
+   **Windows (Command Prompt):**
+   ```
+   set DATA_DIR=restore-test
+   set PORT=8081
+   npm run admin -- restore "%USERPROFILE%\Downloads\workspace-backup-2026-10-08T12-00-00.tar"
+   npm start
+   ```
+   **Mac (Terminal):**
+   ```
+   export DATA_DIR=restore-test PORT=8081
+   npm run admin -- restore ~/Downloads/workspace-backup-2026-10-08T12-00-00.tar
+   npm start
+   ```
+4. Open <http://localhost:8081> and sign in with your normal email and password. You should see the same tasks and be able to open documents.
+5. Stop it (`Ctrl+C`), close the window (this clears the settings above), and delete the `restore-test` folder: it contains real data.
 
 ## If something goes wrong
 
